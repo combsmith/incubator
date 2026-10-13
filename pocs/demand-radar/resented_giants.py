@@ -247,7 +247,7 @@ def run(inp=IN_PATH, out_path=OUT_PATH, min_market=8000, max_n=0, sleep=2.2):
         note = out[k].get("note")  # set only when the leader could not be scored
         if note == UNFETCHED:
             unfetched += 1
-        if not note and (i + 1) % 10 == 0:
+        if (i + 1) % 10 == 0:
             with open(out_path, "w", encoding="utf-8") as f:
                 json.dump(out, f)
             print(
