@@ -213,6 +213,25 @@ def reddit_mentions(q, token):
     return {"source": "reddit", "mentions": len(d.get("data", {}).get("children", [])), "query": q}
 
 
+def _query_source(src, q, vert, rtoken):
+    """Community metric for q from src, or None when src is not applicable to this record."""
+    if src == "youtube":
+        return yt_mentions(q)
+    if src == "stackexchange":
+        site = SITE_MAP.get(vert)
+        return se_mentions(q, site) if site else None
+    if src == "reddit":
+        # needs an OAuth app token (often IP-blocked from cloud); skip without one
+        return reddit_mentions(q, rtoken) if rtoken else None
+    return hn_mentions(q)
+
+
+def _is_exhausted(e):
+    # 403/429 status (YouTube reports an exhausted quota as a plain "403 Forbidden")
+    # or a quota message: the source is spent for this run.
+    return getattr(e, "code", None) in (403, 429) or "429" in str(e) or "quota" in str(e).lower()
+
+
 def fetch_for(record, forced, budget_left, rtoken, dead):
     """Route a record to a community source (respecting forced source + budgets + dead sources)."""
     q, vert = record["canonical_query"], record.get("industry")
@@ -221,30 +240,17 @@ def fetch_for(record, forced, budget_left, rtoken, dead):
         if src in dead or budget_left.get(src, 0) <= 0:
             continue
         try:
-            if src == "youtube":
-                cm = yt_mentions(q)
-            elif src == "stackexchange":
-                site = SITE_MAP.get(vert)
-                if not site:
-                    continue
-                cm = se_mentions(q, site)
-            elif src == "reddit":
-                if not rtoken:
-                    continue  # needs an OAuth app token (often IP-blocked from cloud); skip
-                cm = reddit_mentions(q, rtoken)
-            else:
-                cm = hn_mentions(q)
-            budget_left[src] -= 1
-            return cm
+            cm = _query_source(src, q, vert, rtoken)
         except Exception as e:  # noqa: BLE001
-            # 403/429 status (YouTube reports an exhausted quota as a plain "403 Forbidden")
-            # or a quota message: the source is spent for this run.
-            if getattr(e, "code", None) in (403, 429) or "429" in str(e) or "quota" in str(e).lower():
+            if _is_exhausted(e):
                 dead.add(src)  # exhausted for this run — stop trying it (no more wasted 429s)
                 print(f"  ~ {src} exhausted (429/quota); skipping it for the rest of this run", file=sys.stderr)
             else:
                 print(f"  ! {src} failed for {q!r}: {e}", file=sys.stderr)
             continue
+        if cm is not None:
+            budget_left[src] -= 1
+            return cm
     return {"source": "none", "mentions": None}
 
 
@@ -281,17 +287,48 @@ def default_source():
     return os.environ.get("DR_COMMUNITY_SOURCE", "")
 
 
-def run(inp=IN_PATH, out=OUT_PATH, source="", max_n=300, sleep=0.25):
+def _check_args(source, max_n, has_youtube_key):
     # A forced source that cannot work would otherwise "succeed" with every target written
     # as source "none" — fail up front instead. (Auto-routing still just skips youtube.)
     if source and source not in BUDGET:
         raise StageError(f"Error: unknown community source {source!r}; expected one of {', '.join(BUDGET)}.")
     if max_n < 0:
         raise StageError(f"--max must be >= 0 (got {max_n})")
-    # An EMPTY key counts as no key: CI always sets the variable, to "" when the secret is absent.
-    has_youtube_key = bool(os.environ.get("YOUTUBE_API_KEY"))
     if source == "youtube" and not has_youtube_key:
         raise StageError("Error: --source youtube requires YOUTUBE_API_KEY. Aborting instead of falling back.")
+
+
+def _forced_reddit_token():
+    cid, sec = os.environ.get("REDDIT_CLIENT_ID"), os.environ.get("REDDIT_CLIENT_SECRET")
+    rtoken = reddit_token(cid, sec) if cid and sec else None
+    if not rtoken:
+        # forced Reddit mode with no usable token: reject up front rather than run the
+        # whole enrichment as a silent no-op (every record -> source "none"). Never
+        # substitute Hacker News for an explicitly forced source.
+        raise StageError(
+            "Error: --source reddit requires REDDIT_CLIENT_ID/REDDIT_CLIENT_SECRET "
+            "(and a non-blocked IP). Aborting instead of falling back."
+        )
+    return rtoken
+
+
+def _apply_metric(r, cm):
+    """Attach community metric cm to r and re-verdict it; return the change tuple, or None if unchanged."""
+    r["demand"]["community_metric"] = cm
+    nv, note = recompute(r, cm)
+    if nv == r["verdict_heuristic"]:
+        return None
+    change = (r["canonical_query"], r["verdict_heuristic"], nv, cm.get("mentions"), cm.get("source"))
+    r["verdict_heuristic"] = nv
+    r["corroboration_count"] = 2
+    r["community_note"] = note
+    return change
+
+
+def run(inp=IN_PATH, out=OUT_PATH, source="", max_n=300, sleep=0.25):
+    # An EMPTY key counts as no key: CI always sets the variable, to "" when the secret is absent.
+    has_youtube_key = bool(os.environ.get("YOUTUBE_API_KEY"))
+    _check_args(source, max_n, has_youtube_key)
     with open(inp, encoding="utf-8") as f:
         records = [json.loads(line) for line in f]
     survivors = [r for r in records if not r.get("verdict_heuristic", "").startswith("REJECT")]
@@ -299,18 +336,7 @@ def run(inp=IN_PATH, out=OUT_PATH, source="", max_n=300, sleep=0.25):
     targets = survivors[:max_n] if max_n else survivors  # 0 = no cap (same meaning as extract --max)
     print(f"records={len(records)} survivors={len(survivors)} enriching_top={len(targets)}", flush=True)
 
-    rtoken = None
-    if source == "reddit":
-        cid, sec = os.environ.get("REDDIT_CLIENT_ID"), os.environ.get("REDDIT_CLIENT_SECRET")
-        rtoken = reddit_token(cid, sec) if cid and sec else None
-        if not rtoken:
-            # forced Reddit mode with no usable token: reject up front rather than run the
-            # whole enrichment as a silent no-op (every record -> source "none"). Never
-            # substitute Hacker News for an explicitly forced source.
-            raise StageError(
-                "Error: --source reddit requires REDDIT_CLIENT_ID/REDDIT_CLIENT_SECRET "
-                "(and a non-blocked IP). Aborting instead of falling back."
-            )
+    rtoken = _forced_reddit_token() if source == "reddit" else None
 
     budget_left = dict(BUDGET)
     dead = set()  # sources that 429'd this run — skipped thereafter (circuit breaker)
@@ -320,14 +346,9 @@ def run(inp=IN_PATH, out=OUT_PATH, source="", max_n=300, sleep=0.25):
         print("  ~ YOUTUBE_API_KEY not set; skipping youtube source", file=sys.stderr)
     changed = []
     for i, r in enumerate(targets):
-        cm = fetch_for(r, source or None, budget_left, rtoken, dead)
-        r["demand"]["community_metric"] = cm
-        nv, note = recompute(r, cm)
-        if nv != r["verdict_heuristic"]:
-            changed.append((r["canonical_query"], r["verdict_heuristic"], nv, cm.get("mentions"), cm.get("source")))
-            r["verdict_heuristic"] = nv
-            r["corroboration_count"] = 2
-            r["community_note"] = note
+        change = _apply_metric(r, fetch_for(r, source or None, budget_left, rtoken, dead))
+        if change:
+            changed.append(change)
         if (i + 1) % 50 == 0:
             print(f"  {i + 1}/{len(targets)}  budgets={budget_left}", flush=True)
         time.sleep(sleep)

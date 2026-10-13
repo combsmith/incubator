@@ -183,36 +183,50 @@ def reviews(tid, pages):
     return out
 
 
-def analyze_reviews(revs):
-    low = [x for x in revs if x[0] <= 3]
-    high = [x for x in revs if x[0] >= 4]
+def _tally_gripes(low):
+    """Gripe-category counts, up to 3 quotes per category, and how many low reviews resent."""
     gcat = collections.Counter()
     quotes = collections.defaultdict(list)
     resenting = 0  # count each low review AT MOST ONCE toward resent_frac (not per category)
     for rt, t, b in low:
         hay = (t + " . " + b).lower()
-        hit_resent = False
-        for c, rx in GRIPE_RE.items():
-            if rx.search(hay):
-                gcat[c] += 1
-                if c in RESENT_CATS:
-                    hit_resent = True
-                if len(quotes[c]) < 3:
-                    quotes[c].append({"r": rt, "t": _clip(t, 70), "b": _clip(b, 160)})
-        if hit_resent:
+        hits = [c for c, rx in GRIPE_RE.items() if rx.search(hay)]
+        for c in hits:
+            gcat[c] += 1
+            if len(quotes[c]) < 3:
+                quotes[c].append({"r": rt, "t": _clip(t, 70), "b": _clip(b, 160)})
+        if any(c in RESENT_CATS for c in hits):
             resenting += 1
+    return gcat, quotes, resenting
+
+
+def _tally_loves(high):
     loves = collections.Counter()
-    for rt, t, b in high:
+    for _rt, t, b in high:
         hay = (t + " . " + b).lower()
         for w, rx in LOVE_RE.items():
             if rx.search(hay):
                 loves[w.replace(" it", "").replace(" this", "")] += 1
+    return loves
+
+
+def _collect_wishes(revs):
+    """Distinct (case-insensitive) mid-length "I wish..." phrases, in review order."""
     wishes = []
-    for rt, t, b in low + high:
+    for _rt, _t, b in revs:
         for m in WISH_RE.findall(b):
             s = m.strip()
             if 12 < len(s) < 90 and s.lower() not in [w.lower() for w in wishes]:
                 wishes.append(s)
+    return wishes
+
+
+def analyze_reviews(revs):
+    low = [x for x in revs if x[0] <= 3]
+    high = [x for x in revs if x[0] >= 4]
+    gcat, quotes, resenting = _tally_gripes(low)
+    loves = _tally_loves(high)
+    wishes = _collect_wishes(low + high)
     return {
         "n": len(revs),
         "n_low": len(low),
@@ -247,6 +261,79 @@ def synth_wedge(market_gripes, loves):
     return w
 
 
+def _competitor_row(a):
+    return {
+        "app": a.get("trackName"),
+        "id": a.get("trackId"),
+        "seller": a.get("sellerName"),
+        "rating": round(a.get("averageUserRating") or 0, 2),
+        "count": a.get("userRatingCount") or 0,
+        "price": a.get("formattedPrice"),
+        "updated": (a.get("currentVersionReleaseDate") or "")[:7],
+        "genre": a.get("primaryGenreName"),
+    }
+
+
+def _mine_reviews(c, pages):
+    """Fetch + analyze competitor c's reviews into c (in place); return the analysis or None."""
+    revs = reviews(c["id"], pages)
+    if revs is None:
+        c["reviews_unavailable"] = True  # rendered as unknown ("n/a"), not 0%
+        return None
+    rv = analyze_reviews(revs)
+    c["reviews"] = rv
+    return rv
+
+
+def _resent_cell(c):
+    rv = c.get("reviews")
+    if rv:
+        return f"{int(rv['resent_frac'] * 100)}%"
+    return "n/a" if c.get("reviews_unavailable") else "—"
+
+
+def _market_lines(comps):
+    L = ["## The market — who you're up against\n", "| App | ★ | Ratings | Price | Updated | Resent% |"]
+    L.append("|---|--:|--:|---|---|--:|")
+    for c in comps:
+        L.append(f"| {c['app']} | {c['rating']} | {c['count']:,} | {c['price']} | {c['updated']} | {_resent_cell(c)} |")
+    cutoff = time.strftime("%Y-%m", time.gmtime(time.time() - 365 * 86400))
+    stale = [c["app"] for c in comps if c["updated"] and c["updated"] < cutoff]
+    if stale:
+        L.append(f"\n*Aging (no update since {cutoff}):* {', '.join(stale)} — softer targets.")
+    return L
+
+
+def _opening_lines(comps, market_gripes):
+    L = ["\n## What the market gets wrong — the openings\n"]
+    for cat, n in sorted(market_gripes.items(), key=lambda x: -x[1]):
+        L.append(f"- **{cat}** — {n} complaint(s) across leaders")
+        for c in comps:
+            for q in (c.get("reviews", {}).get("quotes", {}).get(cat, []))[:1]:
+                # collapse literal newlines so a multi-line review body stays one list item
+                L.append('    - *"{}"* — {}'.format(" ".join(q["t"].split()), " ".join(q["b"].split())))
+    return L
+
+
+def _render_brief(kw, ma, comps, market_gripes, loves, wishes, wedge):
+    """Markdown deep-dive brief, as a list of lines."""
+    L = [f"# Deep dive — **{kw}**\n"]
+    if ma:
+        L.append(
+            f"**Market demand (MobileAction):** search volume `{ma.get('volume')}` · difficulty `{ma.get('difficulty')}` · {ma.get('ranked_apps')} ranked apps. {ma.get('note', '')}\n"
+        )
+    L += _market_lines(comps)
+    L += _opening_lines(comps, market_gripes)
+    L.append("\n## What users love — preserve these\n")
+    L.append(", ".join(f"**{k}** ({v})" for k, v in loves.most_common(8)) or "—")
+    if wishes:
+        L.append("\n## Specific feature wishes (from reviews)\n")
+        L += [f'- "{w}"' for w in wishes]
+    L.append("\n## The wedge — how to win\n")
+    L += [f"- {b}" for b in wedge]
+    return L
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--keyword", required=True)
@@ -269,33 +356,18 @@ def main():
     market_gripes = collections.Counter()
     wish_lists = []  # one list per review-mined competitor
     for a in apps:
-        c = {
-            "app": a.get("trackName"),
-            "id": a.get("trackId"),
-            "seller": a.get("sellerName"),
-            "rating": round(a.get("averageUserRating") or 0, 2),
-            "count": a.get("userRatingCount") or 0,
-            "price": a.get("formattedPrice"),
-            "updated": (a.get("currentVersionReleaseDate") or "")[:7],
-            "genre": a.get("primaryGenreName"),
-        }
+        c = _competitor_row(a)
         if c["count"] >= args.min_ratings and c["id"]:
-            revs = reviews(c["id"], args.pages)
-            if revs is None:
-                c["reviews_unavailable"] = True  # rendered as unknown ("n/a"), not 0%
-            else:
-                rv = analyze_reviews(revs)
-                c["reviews"] = rv
-                for k, v in rv["gripes"].items():
-                    market_gripes[k] += v
+            rv = _mine_reviews(c, args.pages)
+            if rv is not None:
+                market_gripes.update(rv["gripes"])
                 wish_lists.append(rv["wishes"])
             time.sleep(0.6)
         comps.append(c)
 
     loves = collections.Counter()
     for c in comps:
-        for k, v in (c.get("reviews", {}).get("loves") or {}).items():
-            loves[k] += v
+        loves.update(c.get("reviews", {}).get("loves") or {})
     wedge = synth_wedge(market_gripes, dict(loves.most_common(6)))
     # Round-robin across competitors so the capped market list draws from every incumbent
     # instead of being filled by the first one or two.
@@ -313,41 +385,7 @@ def main():
     with open(os.path.join(outdir, slug + ".json"), "w", encoding="utf-8") as fh:
         json.dump(result, fh, indent=2)
 
-    # ---- markdown brief ----
-    L = []
-    L.append(f"# Deep dive — **{kw}**\n")
-    if ma:
-        L.append(
-            f"**Market demand (MobileAction):** search volume `{ma.get('volume')}` · difficulty `{ma.get('difficulty')}` · {ma.get('ranked_apps')} ranked apps. {ma.get('note', '')}\n"
-        )
-    L.append("## The market — who you're up against\n")
-    L.append("| App | ★ | Ratings | Price | Updated | Resent% |")
-    L.append("|---|--:|--:|---|---|--:|")
-    for c in comps:
-        rv = c.get("reviews")
-        res = f"{int(rv['resent_frac'] * 100)}%" if rv else "n/a" if c.get("reviews_unavailable") else "—"
-        L.append(f"| {c['app']} | {c['rating']} | {c['count']:,} | {c['price']} | {c['updated']} | {res} |")
-    cutoff = time.strftime("%Y-%m", time.gmtime(time.time() - 365 * 86400))
-    stale = [c["app"] for c in comps if c["updated"] and c["updated"] < cutoff]
-    if stale:
-        L.append(f"\n*Aging (no update since {cutoff}):* {', '.join(stale)} — softer targets.")
-    L.append("\n## What the market gets wrong — the openings\n")
-    for cat, n in sorted(market_gripes.items(), key=lambda x: -x[1]):
-        L.append(f"- **{cat}** — {n} complaint(s) across leaders")
-        for c in comps:
-            for q in (c.get("reviews", {}).get("quotes", {}).get(cat, []))[:1]:
-                # collapse literal newlines so a multi-line review body stays one list item
-                L.append('    - *"{}"* — {}'.format(" ".join(q["t"].split()), " ".join(q["b"].split())))
-                break
-    L.append("\n## What users love — preserve these\n")
-    L.append(", ".join(f"**{k}** ({v})" for k, v in loves.most_common(8)) or "—")
-    if result["wishes"]:
-        L.append("\n## Specific feature wishes (from reviews)\n")
-        for w in result["wishes"]:
-            L.append(f'- "{w}"')
-    L.append("\n## The wedge — how to win\n")
-    for b in wedge:
-        L.append(f"- {b}")
+    L = _render_brief(kw, ma, comps, market_gripes, loves, result["wishes"], wedge)
     with open(os.path.join(outdir, slug + ".md"), "w", encoding="utf-8") as fh:
         fh.write("\n".join(L) + "\n")
     print(f"wrote {outdir}/{slug}.md (+ .json)")
