@@ -350,7 +350,7 @@ def run(inp=IN_PATH, out=OUT_PATH, source="", max_n=300, sleep=0.25):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--source", default=default_source())  # "" = auto-route
+    ap.add_argument("--source", default=default_source())  # an empty source auto-routes
     ap.add_argument("--max", type=int, default=300)
     ap.add_argument("--sleep", type=float, default=0.25)
     args = ap.parse_args()

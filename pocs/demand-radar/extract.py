@@ -152,7 +152,12 @@ def analyze(term, results, discovery_channel=None):
     else:
         gap_type = "thin"
 
-    competition = "high" if n_credible >= 8 else "medium" if n_credible >= 3 else "low"
+    if n_credible >= 8:
+        competition = "high"
+    elif n_credible >= 3:
+        competition = "medium"
+    else:
+        competition = "low"
     if discovery_channel == "community":
         supply_confidence = "low"
     elif n_relevant == 0 and len(results) > 0:

@@ -59,10 +59,10 @@ def opener(monkeypatch):
 class TestRedirectHandler:
     def test_blocks_redirects_off_oauth_reddit(self):
         req = urllib.request.Request("https://www.reddit.com/api/v1/access_token")
+        handler = enrich.HTTPSOnlyRedirectHandler()
+        headers = email.message.Message()
         with pytest.raises(urllib.error.HTTPError):
-            enrich.HTTPSOnlyRedirectHandler().redirect_request(
-                req, None, 302, "Found", email.message.Message(), "http://evil.example/steal"
-            )
+            handler.redirect_request(req, None, 302, "Found", headers, "http://evil.example/steal")
 
     def test_follows_redirects_that_stay_on_oauth_reddit(self):
         req = urllib.request.Request("https://www.reddit.com/api/v1/access_token")
