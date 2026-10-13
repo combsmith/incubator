@@ -337,7 +337,8 @@ def main():
             res = "n/a"
         else:
             res = "—"
-        L.append(f"| {c['app']} | {c['rating']} | {c['count']:,} | {c['price']} | {c['updated']} | {res} |")
+        name = (c["app"] or "—").replace("|", "\\|")
+        L.append(f"| {name} | {c['rating']} | {c['count']:,} | {c['price'] or '—'} | {c['updated'] or '—'} | {res} |")
     cutoff = time.strftime("%Y-%m", time.gmtime(time.time() - 365 * 86400))
     stale = [c["app"] for c in comps if c["updated"] and c["updated"] < cutoff]
     if stale:
