@@ -335,7 +335,7 @@ function matchesQuery(x){
 }
 function filtered(){
   const a = DATA.filter(x=> matchesFacets(x) && matchesLens(x) && matchesRating(x) && matchesQuery(x));
-  a.sort(Object.hasOwn(SORTS, state.sort) ? SORTS[state.sort] : SORTS.score);
+  a.sort(SORTS[state.sort] || SORTS.score);
   return a;
 }
 
