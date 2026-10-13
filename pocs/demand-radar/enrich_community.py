@@ -300,7 +300,14 @@ def _check_args(source, max_n, has_youtube_key):
 
 def _forced_reddit_token():
     cid, sec = os.environ.get("REDDIT_CLIENT_ID"), os.environ.get("REDDIT_CLIENT_SECRET")
-    rtoken = reddit_token(cid, sec) if cid and sec else None
+    rtoken = None
+    if cid and sec:
+        try:
+            rtoken = reddit_token(cid, sec)
+        except (urllib.error.URLError, urllib.error.HTTPError, ValueError, KeyError) as e:
+            raise StageError(
+                f"Error fetching Reddit token (check REDDIT_CLIENT_ID/REDDIT_CLIENT_SECRET and network): {e}"
+            ) from e
     if not rtoken:
         # forced Reddit mode with no usable token: reject up front rather than run the
         # whole enrichment as a silent no-op (every record -> source "none"). Never
