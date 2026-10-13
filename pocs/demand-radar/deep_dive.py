@@ -226,7 +226,7 @@ def analyze_reviews(revs):
     high = [x for x in revs if x[0] >= 4]
     gcat, quotes, resenting = _tally_gripes(low)
     loves = _tally_loves(high)
-    wishes = _collect_wishes(low + high)
+    wishes = _collect_wishes(revs)  # original newest-first order, not grouped by rating
     return {
         "n": len(revs),
         "n_low": len(low),
