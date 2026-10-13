@@ -67,76 +67,89 @@ def load_broad():
     return out
 
 
-def main():
-    records = load_current(HERE)
-    labels = load_labels()
-    broad = load_broad()
+def _gap_weight(gap, channel, app_intent, bi):
+    """(gap weight, trust note) — discounts an "absent-in-store" gap the evidence can't back."""
+    gap_w = GAP_W.get(gap, 0)
+    if gap != "absent-in-store":
+        return gap_w, None
+    if channel == "app-store":
+        # UNRELIABLE on app-store: usually a relevance false-negative (a real app
+        # exists under a different name — 'step calculator' vs 'Pedometer++'). Do NOT
+        # let it top the list on 'absent' alone; only MobileAction volume (below) can
+        # promote it. Trustworthy app-store signals are stale/low-quality/thin, where
+        # we actually matched and assessed real incumbents.
+        return 1.0, "unverified-absent"
+    if not (app_intent or bi >= 6):
+        return 0.5, None  # community nonsense combo (no demand)
+    return gap_w, None
 
-    rows = []
-    for r in records:
-        v = r.get("verdict_heuristic", "")
-        if v.startswith("REJECT"):
-            continue
-        gap = r["gap"]["gap_type"]
-        comp = r["supply"]["competition_intensity"]
-        cbonus, mentions = community_bonus(r)
-        bi, app_intent = broad.get(r["canonical_query"].lower(), (0, 0))
-        gap_w = GAP_W.get(gap, 0)
-        trust_note = None
-        if gap == "absent-in-store":
-            if r["discovery_channel"] == "app-store":
-                # UNRELIABLE on app-store: usually a relevance false-negative (a real app
-                # exists under a different name — 'step calculator' vs 'Pedometer++'). Do NOT
-                # let it top the list on 'absent' alone; only MobileAction volume (below) can
-                # promote it. Trustworthy app-store signals are stale/low-quality/thin, where
-                # we actually matched and assessed real incumbents.
-                gap_w = 1.0
-                trust_note = "unverified-absent"
-            elif not (app_intent or bi >= 6):
-                gap_w = 0.5  # community nonsense combo (no demand)
-        demand_bonus = app_intent + min(bi, 8) / 4.0  # reward real autocomplete demand
-        score = gap_w + COMP_W.get(comp, 0) + cbonus + demand_bonus
-        lab = labels.get(r["canonical_query"].lower())
-        vol = lab["volume"] if lab else None
-        # Demand-aware: MobileAction magnitude only applies to app-store channel (#44).
-        # A labeled app-store candidate with real volume gets a boost; one that is N/A
-        # or at the ~5 floor is demand-validated-EMPTY -> heavy demote (real gap, no demand).
-        mag_note = None
-        if r["discovery_channel"] == "app-store" and lab is not None:
-            if vol is not None and vol >= 40:
-                score += 2
-                mag_note = "demand-validated"
-            elif vol is not None and vol >= 15:
-                score += 1
-            else:  # vol <= ~5 floor, or null/N/A
-                score -= 3
-                mag_note = "no store demand"
-        needs_mag = (r["discovery_channel"] == "app-store") and (lab is None)
-        rows.append(
-            {
-                "score": round(score, 1),
-                "kw": r["canonical_query"],
-                "group": r["industry"],
-                "channel": r["discovery_channel"],
-                "gap": gap,
-                "comp": comp,
-                "sat": r["supply"]["best_existing_satisfaction"],
-                "mentions": mentions,
-                "demand": f"{app_intent}/{bi}",
-                "vol": vol,
-                "verdict": v,
-                "needs_mag": needs_mag,
-                "mag_note": mag_note,
-                "trust_note": trust_note,
-            }
-        )
 
-    rows.sort(key=lambda x: (-x["score"], x["group"]))
+def _magnitude_adj(channel, lab, vol):
+    """(score delta, note) from a MobileAction label's volume."""
+    # Demand-aware: MobileAction magnitude only applies to app-store channel (#44).
+    # A labeled app-store candidate with real volume gets a boost; one that is N/A
+    # or at the ~5 floor is demand-validated-EMPTY -> heavy demote (real gap, no demand).
+    if channel != "app-store" or lab is None:
+        return 0, None
+    if vol is not None and vol >= 40:
+        return 2, "demand-validated"
+    if vol is not None and vol >= 15:
+        return 1, None
+    return -3, "no store demand"  # vol <= ~5 floor, or null/N/A
 
-    out = os.path.join(HERE, "output", "starter-list.md")
+
+def _rank_row(r, labels, broad):
+    v = r.get("verdict_heuristic", "")
+    gap = r["gap"]["gap_type"]
+    comp = r["supply"]["competition_intensity"]
+    cbonus, mentions = community_bonus(r)
+    bi, app_intent = broad.get(r["canonical_query"].lower(), (0, 0))
+    gap_w, trust_note = _gap_weight(gap, r["discovery_channel"], app_intent, bi)
+    demand_bonus = app_intent + min(bi, 8) / 4.0  # reward real autocomplete demand
+    score = gap_w + COMP_W.get(comp, 0) + cbonus + demand_bonus
+    lab = labels.get(r["canonical_query"].lower())
+    vol = lab["volume"] if lab else None
+    delta, mag_note = _magnitude_adj(r["discovery_channel"], lab, vol)
+    score += delta
+    needs_mag = (r["discovery_channel"] == "app-store") and (lab is None)
+    return {
+        "score": round(score, 1),
+        "kw": r["canonical_query"],
+        "group": r["industry"],
+        "channel": r["discovery_channel"],
+        "gap": gap,
+        "comp": comp,
+        "sat": r["supply"]["best_existing_satisfaction"],
+        "mentions": mentions,
+        "demand": f"{app_intent}/{bi}",
+        "vol": vol,
+        "verdict": v,
+        "needs_mag": needs_mag,
+        "mag_note": mag_note,
+        "trust_note": trust_note,
+    }
+
+
+def _dash(value):
+    return value if value is not None else "—"
+
+
+def _table_line(x):
+    parts = [x["mag_note"], x.get("trust_note")]
+    if x["needs_mag"]:
+        parts.append("needs MA ▲")
+    note = " · ".join(p for p in parts if p)
+    return (
+        f"| {x['score']} | {x['kw']} | {x['group']} | {x['channel']} | {x['gap']} | "
+        f"{x['comp']} | {x['demand']} | {_dash(x['mentions'])} | "
+        f"{_dash(x['vol'])} | {x['verdict']} | {note} |\n"
+    )
+
+
+def _write_starter_list(out, rows, n_records):
     with open(out, "w", encoding="utf-8") as f:
         f.write("# DemandRadar — idea starter list (ranked)\n\n")
-        f.write(f"{len(rows)} non-REJECT candidates from {len(records)} keywords. ")
+        f.write(f"{len(rows)} non-REJECT candidates from {n_records} keywords. ")
         f.write(
             "Score = gap severity + supply scarcity + community corroboration + autocomplete demand, "
             "then a MobileAction volume boost/penalty on labeled app-store keywords (legible, untuned).\n\n"
@@ -157,18 +170,22 @@ def main():
         )
         f.write("|--:|---|---|---|---|---|:--:|--:|--:|---|---|\n")
         for x in rows:
-            parts = [x["mag_note"], x.get("trust_note")]
-            if x["needs_mag"]:
-                parts.append("needs MA ▲")
-            note = " · ".join(p for p in parts if p)
-            f.write(
-                f"| {x['score']} | {x['kw']} | {x['group']} | {x['channel']} | {x['gap']} | "
-                f"{x['comp']} | {x['demand']} | {x['mentions'] if x['mentions'] is not None else '—'} | "
-                f"{x['vol'] if x['vol'] is not None else '—'} | {x['verdict']} | {note} |\n"
-            )
+            f.write(_table_line(x))
         worklist = [x["kw"] for x in rows if x["needs_mag"]]
         f.write(f"\n**MobileAction worklist ({len(worklist)} app-store candidates need magnitude):**\n\n")
         f.write(", ".join(f"`{k}`" for k in worklist) + "\n")
+
+
+def main():
+    records = load_current(HERE)
+    labels = load_labels()
+    broad = load_broad()
+
+    rows = [_rank_row(r, labels, broad) for r in records if not r.get("verdict_heuristic", "").startswith("REJECT")]
+    rows.sort(key=lambda x: (-x["score"], x["group"]))
+
+    out = os.path.join(HERE, "output", "starter-list.md")
+    _write_starter_list(out, rows, len(records))
 
     print(f"Wrote {out}  ({len(rows)} candidates)")
     print("Top 15:")
