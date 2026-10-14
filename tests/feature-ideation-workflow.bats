@@ -7,7 +7,7 @@
 # `feature-ideation/*` channel tag. Its header forbids behavioral edits to the
 # trigger shape, the `uses:` line, the job-level `permissions:` block, and the
 # `secrets:` block — those are required for the reusable to work and are enforced
-# fleet-wide by the org-wide drift-enforcement mechanism (see petry-projects/.github
+# fleet-wide by the org-wide drift-enforcement mechanism (see combsmith/.github
 # AGENTS.md).
 #
 # Fleet Monitor flagged this workflow as DEGRADED (issue #64), but the single
