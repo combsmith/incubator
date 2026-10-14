@@ -20,5 +20,5 @@ pocs/<slug>/     # one folder per POC; match the idea's slug
   the idea's `brief.md` (§6 assumptions table). A dead POC with a recorded reason is
   worth more than a silent deletion.
 - **Graduation ≠ growth.** If the POC proves out, create a *new* product repo from
-  `petry-projects/repo-template` and start the real build there. Don't grow the POC
+  `combsmith/repo-template` and start the real build there. Don't grow the POC
   in place.

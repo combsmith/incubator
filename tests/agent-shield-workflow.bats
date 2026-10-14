@@ -63,5 +63,5 @@ setup() {
   # Isolate the agent-shield job block before checking the `uses:` line so
   # the assertion is scoped to the correct job.
   job_block="$(awk '/^  agent-shield:/{p=1;next} /^  [a-z_]+:/{p=0} p' "$AS_YML")"
-  echo "$job_block" | grep -qE '^    uses: petry-projects/\.github/\.github/workflows/agent-shield-reusable\.yml@agent-shield/v2-stable'
+  echo "$job_block" | grep -qE '^    uses: combsmith/\.github/\.github/workflows/agent-shield-reusable\.yml@agent-shield/v2-stable'
 }
