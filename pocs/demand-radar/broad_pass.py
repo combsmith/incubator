@@ -28,7 +28,7 @@ from concurrent.futures import ThreadPoolExecutor, wait
 
 from errors import StageError, run_cli
 
-UA = "Mozilla/5.0 (research; petry-projects/incubator DemandRadar-spike)"
+UA = "Mozilla/5.0 (research; combsmith/incubator DemandRadar-spike)"
 
 # --- global rate limiter: space autocomplete calls regardless of worker count ---
 # Workers fire concurrently, so without this N workers could burst N requests at once

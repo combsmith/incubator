@@ -67,7 +67,7 @@ uses_line() {
 # ── Reusable ref (header: "do not repoint to @main, a SHA, or a frozen @vX") ──
 
 @test "uses: targets the org pr-review-mention reusable workflow" {
-  uses_line | grep -qF 'petry-projects/.github/.github/workflows/pr-review-mention-reusable.yml@'
+  uses_line | grep -qF 'combsmith/.github/.github/workflows/pr-review-mention-reusable.yml@'
 }
 
 @test "the reusable ref is a moving channel tag, not @main / a SHA / a frozen @vX" {

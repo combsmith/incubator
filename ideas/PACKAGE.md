@@ -22,7 +22,7 @@ machine-readable contract is [`package-spec.json`](./package-spec.json); the CI 
 `ost.md` (opportunity-solution-tree) is a **supporting** artifact — encouraged, not gate-required.
 
 > Fast-follow: headless producers + machine validators for brainstorm and
-> market-research are being built in `petry-projects/bmad-bgreat-suite` so the whole
+> market-research are being built in `combsmith/bmad-bgreat-suite` so the whole
 > package can eventually be agent-generated and validated, not just structurally checked.
 
 ## What "done" means (what the gate checks)
