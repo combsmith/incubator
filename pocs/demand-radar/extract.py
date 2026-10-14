@@ -34,7 +34,7 @@ from datetime import datetime, timezone
 from errors import StageError, run_cli
 
 ITUNES_SEARCH = "https://itunes.apple.com/search"
-UA = "DemandRadar-spike/0.4 (+petry-projects/incubator; research)"
+UA = "DemandRadar-spike/0.4 (+combsmith/incubator; research)"
 HERE = os.path.dirname(os.path.abspath(__file__))
 # Fixed data locations. Deliberately NOT CLI options: a path taken from argv would flow into
 # open()/makedirs (path injection). The CLI picks a keyword SOURCE by name (--source); callers
