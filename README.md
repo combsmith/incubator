@@ -1,14 +1,14 @@
 # incubator
 
-[![Contributing](https://img.shields.io/badge/contributions-welcome-brightgreen.svg)](https://github.com/petry-projects/.github/blob/main/CONTRIBUTING.md)
+[![Contributing](https://img.shields.io/badge/contributions-welcome-brightgreen.svg)](https://github.com/combsmith/.github/blob/main/CONTRIBUTING.md)
 
-Front-of-funnel home for **pre-product** work in `petry-projects`: raw idea
+Front-of-funnel home for **pre-product** work in `combsmith`: raw idea
 Discussions that aren't yet a product, the **decision brief / PRD-lite** an idea
 is judged on, and **disposable POCs**. When a POC proves out, the idea
 **graduates to its own product repo** — it does not grow up here.
 
 This repo is the missing pre-product stage of the org ideation pipeline
-(`petry-projects/.github-private` → `feature-ideation` → `idea-triage` →
+(`combsmith/.github-private` → `feature-ideation` → `idea-triage` →
 `idea:approved` → `initiative-planner`). Approved *products* already own their
 PRDs in their own repos (`_bmad-output/planning-artifacts/`); this repo is where
 an idea lives **before** it earns a repo of its own.
@@ -57,7 +57,7 @@ pocs/
    own CI/deploy/deps, a disposable `poc-<slug>` repo. Prefer the *cheapest*
    testable artifact — a working spike often decides faster than more documents.
 5. **Graduate** — if the POC proves out, create a new product repo from
-   `petry-projects/repo-template`; the `brief.md` seeds John's full PRD there.
+   `combsmith/repo-template`; the `brief.md` seeds John's full PRD there.
    Archive the incubator folder.
 
 ## Conventions
@@ -71,7 +71,7 @@ pocs/
 ---
 
 Baseline scaffolding (workflows, CODEOWNERS, LICENSE, SECURITY) comes from
-`petry-projects/repo-template`; see [BOOTSTRAP.md](./BOOTSTRAP.md) for the
+`combsmith/repo-template`; see [BOOTSTRAP.md](./BOOTSTRAP.md) for the
 one-time per-repo setup and [AGENTS.md](./AGENTS.md) for the org-standards pointer.
 
 ---
@@ -91,4 +91,4 @@ For commercial inquiries, email [support@combsmith.com](mailto:support@combsmith
 
 ## Contributing
 
-See the org-wide [Contributing Guide](https://github.com/petry-projects/.github/blob/main/CONTRIBUTING.md) and [SECURITY.md](SECURITY.md).
+See the org-wide [Contributing Guide](https://github.com/combsmith/.github/blob/main/CONTRIBUTING.md) and [SECURITY.md](SECURITY.md).

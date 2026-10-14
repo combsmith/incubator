@@ -27,7 +27,7 @@ import urllib.request
 from patterns import cat_pattern
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-UA = "DemandRadar-spike/0.6 (+petry-projects/incubator; research)"
+UA = "DemandRadar-spike/0.6 (+combsmith/incubator; research)"
 
 PRICING = "pricing / paywall"
 GOT_WORSE = "got worse (enshittification)"

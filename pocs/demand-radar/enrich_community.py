@@ -32,7 +32,7 @@ import urllib.request
 
 from errors import StageError, run_cli
 
-UA = "DemandRadar-spike/0.4 (+petry-projects/incubator; research)"
+UA = "DemandRadar-spike/0.4 (+combsmith/incubator; research)"
 
 
 def _word_set(text):

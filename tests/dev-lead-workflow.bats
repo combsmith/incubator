@@ -5,7 +5,7 @@
 # concurrency lanes, retries, timeouts — lives centrally in the reusable
 # dev-lead-reusable.yml, pinned to the moving `dev-lead/*` channel tag. Behavioral
 # edits to this caller are forbidden by its header and enforced fleet-wide by the
-# org-wide drift-enforcement mechanism (see petry-projects/.github AGENTS.md). The one failure mode this consumer
+# org-wide drift-enforcement mechanism (see combsmith/.github AGENTS.md). The one failure mode this consumer
 # repo controls is LOCAL DRIFT of the caller: a trimmed trigger, a narrowed
 # permission, a `@main` (self-hosting-circular) ref, a channel/agent_ref mismatch,
 # a dropped NOSONAR marker (which re-fails the Quality Gate), or an added

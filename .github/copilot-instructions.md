@@ -2,12 +2,12 @@
 
 ## About
 
-`repo-template` is the org baseline scaffold for new `petry-projects` repositories:
+`repo-template` is the org baseline scaffold for new `combsmith` repositories:
 click **Use this template** to create a repo pre-wired with the standard workflow
 stubs and baseline files. Its "code" is GitHub Actions workflows and Markdown docs —
 there is no application runtime and no local automation scripts. The workflow stubs and
 baseline files are a distribution artifact of the org standards in
-[`petry-projects/.github`](https://github.com/petry-projects/.github) (`standards/`)
+[`combsmith/.github`](https://github.com/combsmith/.github) (`standards/`)
 and are regenerated from there.
 
 ## Tech Stack
@@ -27,7 +27,7 @@ and are regenerated from there.
   dependabot.yml      # Per-stack — picked once during bootstrap (see BOOTSTRAP.md)
 tests/
   ci-secret-scan.bats # Compliance regression guard for the secret-scan CI job
-AGENTS.md             # Points to org-wide standards in petry-projects/.github
+AGENTS.md             # Points to org-wide standards in combsmith/.github
 BOOTSTRAP.md          # One-time, per-stack setup steps for repos made from this template
 sonar-project.properties  # SonarCloud project key / sources (customize per repo)
 ```
@@ -71,14 +71,14 @@ No application secrets are needed for local work. In CI:
 ## Repo-Specific Overrides
 
 - **Edit the standards, not these copies.** Workflow stubs and baseline files are regenerated
-  from `petry-projects/.github` (`standards/`). Changes to the org-wide pattern belong in a PR
+  from `combsmith/.github` (`standards/`). Changes to the org-wide pattern belong in a PR
   against that repo and are then propagated to the fleet — do not fork the pattern here.
 - `ci.yml` ships as a passing placeholder; a real repo replaces the stub step with its stack's
   lint / format / typecheck / test / coverage steps (see `BOOTSTRAP.md`).
 
 ## Org Standards
 
-See [petry-projects/.github — AGENTS.md](https://github.com/petry-projects/.github/blob/main/AGENTS.md)
+See [combsmith/.github — AGENTS.md](https://github.com/combsmith/.github/blob/main/AGENTS.md)
 for org-wide development standards.
 
 _No language-specific instruction files are deployed to `.github/instructions/` in this repo, so

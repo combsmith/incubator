@@ -63,5 +63,5 @@ setup() {
   # Isolate the dependency-audit job block before checking the `uses:` line so
   # the assertion is scoped to the correct job.
   job_block="$(awk '/^  dependency-audit:/{p=1;next} /^  [a-z_]+:/{p=0} p' "$DEP_YML")"
-  echo "$job_block" | grep -qE '^    uses: petry-projects/\.github/\.github/workflows/dependency-audit-reusable\.yml@dependency-audit/v2-stable'
+  echo "$job_block" | grep -qE '^    uses: combsmith/\.github/\.github/workflows/dependency-audit-reusable\.yml@dependency-audit/v2-stable'
 }
