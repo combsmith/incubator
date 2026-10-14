@@ -8,8 +8,8 @@ graduation). Owner: Mary (Analyst). Keep it tight — a page or two.
 -->
 
 - **Slug:** `content-twin`
-- **Source Discussion:** https://github.com/petry-projects/incubator/discussions/6
-- **Source repo (canonical home):** https://github.com/petry-projects/ContentTwin — ContentTwin's canonical home remains its own repo. This incubator entry is for **ideation tracking only**, not a move.
+- **Source Discussion:** https://github.com/combsmith/incubator/discussions/6
+- **Source repo (canonical home):** https://github.com/combsmith/ContentTwin — ContentTwin's canonical home remains its own repo. This incubator entry is for **ideation tracking only**, not a move.
 - **Author / owner:** don-petry
 - **Status:** `draft`
 - **Last updated:** 2026-07-12
@@ -23,7 +23,7 @@ graduation). Owner: Mary (Analyst). Keep it tight — a page or two.
 
 ## 0. Grounded current state (what actually exists)
 
-Everything in this section is directly observable in `petry-projects/ContentTwin` as of 2026-07-12:
+Everything in this section is directly observable in `combsmith/ContentTwin` as of 2026-07-12:
 
 - Repo created **2026-03-26**; primary language **Shell**; ~1.3 MB on disk.
 - **No product code.** The only source is org-standard scaffolding: `scripts/apply-repo-settings.sh`, `scripts/setup-rulesets.sh`, CI/lint workflows, reusable-workflow caller stubs, LICENSE, SECURITY, and AGENTS/CLAUDE pointer files.

@@ -1,6 +1,6 @@
 # DemandRadar — extraction spike
 
-Disposable spike for the DemandRadar idea ([incubator Discussion #44](https://github.com/petry-projects/incubator/discussions/44)).
+Disposable spike for the DemandRadar idea ([incubator Discussion #44](https://github.com/combsmith/incubator/discussions/44)).
 Answers: **can we extract the load-bearing signal on a schedule, headless, with no paid dependency?** Yes.
 
 ## Pipeline

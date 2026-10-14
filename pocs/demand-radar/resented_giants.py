@@ -29,7 +29,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 IN_PATH = os.path.join(HERE, "output", "records.jsonl")
 OUT_PATH = os.path.join(HERE, "output", "resented.json")
 UNFETCHED = "reviews-unavailable"  # note on a leader whose reviews could not be fetched (retried later)
-UA = "DemandRadar-spike/0.6 (+petry-projects/incubator; research)"
+UA = "DemandRadar-spike/0.6 (+combsmith/incubator; research)"
 CATS = {
     "pricing": [
         "used to be free",

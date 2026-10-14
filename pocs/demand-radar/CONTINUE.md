@@ -1,6 +1,6 @@
 # DemandRadar — continue here
 
-Disposable spike ([incubator Discussion #44](https://github.com/petry-projects/incubator/discussions/44)).
+Disposable spike ([incubator Discussion #44](https://github.com/combsmith/incubator/discussions/44)).
 A repeatable funnel that finds app opportunities two ways and produces decision-ready briefs.
 
 ## What it does (the pipeline, all scripted, free data, no auth except an optional YouTube key)
@@ -60,7 +60,7 @@ python3 -c "t=open('pocs/demand-radar/dashboard.tmpl.html').read(); d=open('pocs
    enter the keyword space; resume the gap-lens star re-run for full market-size coverage.
 
 ## Ready-to-paste continuation prompt
-> Continue the DemandRadar spike in petry-projects/incubator (pocs/demand-radar/). Read pocs/demand-radar/CONTINUE.md
+> Continue the DemandRadar spike in combsmith/incubator (pocs/demand-radar/). Read pocs/demand-radar/CONTINUE.md
 > and README.md first. The scripted funnel (generate -> DDG broad -> select_priority -> iTunes supply + disruption
 > detector -> enrich (SE/YouTube/HN) -> resented_giants review-text scan -> rank/export -> deep_dive briefs) and the
 > dashboard (https://claude.ai/code/artifact/7d8ef7d9-0f9e-4fc9-a32e-d2a50c125394) are built and populated. I want to
