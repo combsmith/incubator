@@ -284,7 +284,7 @@ def main():
         }
         if c["count"] >= args.min_ratings and c["id"]:
             revs = reviews(c["id"], args.pages)
-            if revs is None:
+            if revs is None or not revs:
                 c["reviews_unavailable"] = True  # rendered as unknown ("n/a"), not 0%
             else:
                 rv = analyze_reviews(revs)
