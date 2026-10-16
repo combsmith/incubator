@@ -29,8 +29,11 @@ from patterns import cat_pattern
 HERE = os.path.dirname(os.path.abspath(__file__))
 UA = "DemandRadar-spike/0.6 (+combsmith/incubator; research)"
 
+PRICING = "pricing / paywall"
+GOT_WORSE = "got worse (enshittification)"
+
 GRIPES = {
-    "pricing / paywall": [
+    PRICING: [
         "paywall",
         "behind a wall",
         "locked behind",
@@ -57,7 +60,7 @@ GRIPES = {
         "$",
     ],
     "ads": ["ads", "adverts", "advertisement", "pop up", "pop-up", "popup", "commercials", "full of ads"],
-    "got worse (enshittification)": [
+    GOT_WORSE: [
         "used to",
         "got worse",
         "gotten worse",
@@ -102,7 +105,7 @@ GRIPES = {
     ],
 }
 # the gripe categories that actually drive users to abandon/switch (resentment signal)
-RESENT_CATS = ("pricing / paywall", "ads", "got worse (enshittification)")
+RESENT_CATS = (PRICING, "ads", GOT_WORSE)
 
 
 GRIPE_RE = {c: cat_pattern(kws) for c, kws in GRIPES.items()}
@@ -219,16 +222,16 @@ def analyze_reviews(revs):
         "n_high": len(high),
         "resent_frac": round(resenting / len(low), 2) if low else 0,
         "gripes": dict(gcat),
-        "quotes": {k: v for k, v in quotes.items()},
+        "quotes": dict(quotes),
         "loves": dict(loves.most_common(8)),
         "wishes": wishes[:6],
     }
 
 
 WEDGE_TEMPLATES = {
-    "pricing / paywall": "**Fix the money model** ({n} gripes — the dominant complaint): win with a genuinely useful free tier or a one-time unlock, not another subscription/paywall-after-2-entries.",
+    PRICING: "**Fix the money model** ({n} gripes — the dominant complaint): win with a genuinely useful free tier or a one-time unlock, not another subscription/paywall-after-2-entries.",
     "ads": "**Ship ad-free** ({n} gripes): ads are a repeated complaint here, and 'no ads' is itself a selling point users praise.",
-    "got worse (enshittification)": "**Be the simple, un-bloated alternative** ({n} gripes): users say the incumbents got worse / raised prices / removed basics — restore the clean original experience.",
+    GOT_WORSE: "**Be the simple, un-bloated alternative** ({n} gripes): users say the incumbents got worse / raised prices / removed basics — restore the clean original experience.",
     "bugs / reliability": "**Make reliability the pitch** ({n} gripes): recurring crashes / broken widgets / lost-data complaints — rock-solid sync + export/backup is a real differentiator.",
     "missing / limited": "**Close the feature gaps** ({n} gripes) users keep explicitly asking for (see the wishes list).",
 }
@@ -281,7 +284,7 @@ def main():
         }
         if c["count"] >= args.min_ratings and c["id"]:
             revs = reviews(c["id"], args.pages)
-            if revs is None:
+            if revs is None or not revs:
                 c["reviews_unavailable"] = True  # rendered as unknown ("n/a"), not 0%
             else:
                 rv = analyze_reviews(revs)
@@ -314,19 +317,28 @@ def main():
         json.dump(result, fh, indent=2)
 
     # ---- markdown brief ----
-    L = []
-    L.append(f"# Deep dive — **{kw}**\n")
+    L = [f"# Deep dive — **{kw}**\n"]
     if ma:
         L.append(
             f"**Market demand (MobileAction):** search volume `{ma.get('volume')}` · difficulty `{ma.get('difficulty')}` · {ma.get('ranked_apps')} ranked apps. {ma.get('note', '')}\n"
         )
-    L.append("## The market — who you're up against\n")
-    L.append("| App | ★ | Ratings | Price | Updated | Resent% |")
-    L.append("|---|--:|--:|---|---|--:|")
+    L.extend(
+        [
+            "## The market — who you're up against\n",
+            "| App | ★ | Ratings | Price | Updated | Resent% |",
+            "|---|--:|--:|---|---|--:|",
+        ]
+    )
     for c in comps:
         rv = c.get("reviews")
-        res = f"{int(rv['resent_frac'] * 100)}%" if rv else "n/a" if c.get("reviews_unavailable") else "—"
-        L.append(f"| {c['app']} | {c['rating']} | {c['count']:,} | {c['price']} | {c['updated']} | {res} |")
+        if rv:
+            res = f"{int(rv['resent_frac'] * 100)}%"
+        elif c.get("reviews_unavailable"):
+            res = "n/a"
+        else:
+            res = "—"
+        name = (c["app"] or "—").replace("|", "\\|")
+        L.append(f"| {name} | {c['rating']} | {c['count']:,} | {c['price'] or '—'} | {c['updated'] or '—'} | {res} |")
     cutoff = time.strftime("%Y-%m", time.gmtime(time.time() - 365 * 86400))
     stale = [c["app"] for c in comps if c["updated"] and c["updated"] < cutoff]
     if stale:

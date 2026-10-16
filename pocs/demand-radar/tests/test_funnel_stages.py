@@ -498,8 +498,10 @@ class TestExtractRun:
         assert len(read_jsonl(out)) == 2
 
     def test_negative_max_is_rejected(self, tmp_path, keywords):
+        kw = keywords(1)
+        out = str(tmp_path / "r.jsonl")
         with pytest.raises(errors.StageError, match="--max must be >= 0"):
-            extract.run(keywords_path=keywords(1), out_path=str(tmp_path / "r.jsonl"), max_n=-1)
+            extract.run(keywords_path=kw, out_path=out, max_n=-1)
 
     def test_failed_fetch_is_not_written_so_it_stays_pending(self, tmp_path, keywords, monkeypatch, capsys):
         monkeypatch.setattr(extract, "fetch", lambda term, country="us", limit=20: ([], not term.endswith("1")))
@@ -519,8 +521,10 @@ class TestExtractRun:
 
         monkeypatch.setattr(extract, "fetch", banned)
         out = tmp_path / "records.jsonl"
+        kw = keywords(40)
+        out_path = str(out)
         with pytest.raises(errors.StageError, match="batch aborted after 15 failed fetches"):
-            extract.run(keywords_path=keywords(40), out_path=str(out), workers=1)
+            extract.run(keywords_path=kw, out_path=out_path, workers=1)
         assert len(calls) == 15  # the 15th consecutive failure trips the breaker; the other 25 are never sent
         assert read_jsonl(out) == []
         stdout = capsys.readouterr().out
@@ -560,16 +564,20 @@ class TestExtractRun:
 
         monkeypatch.setattr(extract, "fetch", fetch)
         out = tmp_path / "records.jsonl"
+        kw = keywords(3)
+        out_path = str(out)
         with pytest.raises(ValueError, match="unexpected payload shape"):
-            extract.run(keywords_path=keywords(3), out_path=str(out), workers=1)
+            extract.run(keywords_path=kw, out_path=out_path, workers=1)
         # the rest of the batch still completed and was written before the failure surfaced
         assert sorted(r["canonical_query"] for r in read_jsonl(out)) == ["mood tracker 0", "mood tracker 2"]
 
     def test_unreadable_existing_output_is_a_stage_error(self, tmp_path, keywords):
         out_dir = tmp_path / "records.jsonl"
         out_dir.mkdir()
+        kw = keywords(1)
+        out_path = str(out_dir)
         with pytest.raises(errors.StageError, match="Error reading existing records"):
-            extract.run(keywords_path=keywords(1), out_path=str(out_dir))
+            extract.run(keywords_path=kw, out_path=out_path)
 
 
 class TestExtractMain:

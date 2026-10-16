@@ -59,10 +59,10 @@ def opener(monkeypatch):
 class TestRedirectHandler:
     def test_blocks_redirects_off_oauth_reddit(self):
         req = urllib.request.Request("https://www.reddit.com/api/v1/access_token")
+        handler = enrich.HTTPSOnlyRedirectHandler()
+        headers = email.message.Message()
         with pytest.raises(urllib.error.HTTPError):
-            enrich.HTTPSOnlyRedirectHandler().redirect_request(
-                req, None, 302, "Found", email.message.Message(), "http://evil.example/steal"
-            )
+            handler.redirect_request(req, None, 302, "Found", headers, "http://evil.example/steal")
 
     def test_follows_redirects_that_stay_on_oauth_reddit(self):
         req = urllib.request.Request("https://www.reddit.com/api/v1/access_token")
@@ -1021,7 +1021,7 @@ class TestDeepDiveMain:
         md = (outdir / "mood-tracker.md").read_text(encoding="utf-8")
         assert "**Market demand (MobileAction):** search volume `48` · difficulty `32` · 234 ranked apps." in md
         assert "| Daylio | 4.71 | 5,000 | Free | 2020-01 | 100% |" in md
-        assert "| Tiny | 0 | 10 | None |  | — |" in md
+        assert "| Tiny | 0 | 10 | — | — | — |" in md
         assert "*Aging (no update since" in md
         assert "- **pricing / paywall** — 3 complaint(s) across leaders" in md
         assert '    - *"Paywall"* — Everything is behind a subscription now.' in md

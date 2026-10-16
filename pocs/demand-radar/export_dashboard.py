@@ -65,7 +65,9 @@ def cbonus(m, src=None):
     if m is None:
         return 0
     corr, thin = COMMUNITY_THRESHOLDS.get(src, (300, 50))
-    return 2 if m >= corr else 1 if m >= thin else 0
+    if m >= corr:
+        return 2
+    return 1 if m >= thin else 0
 
 
 def load_resented():

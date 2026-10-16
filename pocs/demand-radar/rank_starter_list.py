@@ -49,7 +49,9 @@ def community_bonus(rec):
     if m is None:
         return 0, None
     corr, thin = COMMUNITY_THRESHOLDS.get(cm.get("source"), (300, 50))
-    return (2 if m >= corr else 1 if m >= thin else 0), m
+    if m >= corr:
+        return 2, m
+    return (1 if m >= thin else 0), m
 
 
 def load_broad():
