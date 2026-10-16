@@ -120,60 +120,82 @@ def is_relevant(term, app):
     return relevance_score(term, app) >= RELEVANCE_THRESHOLD
 
 
-def analyze(term, results, discovery_channel=None):
-    top = results[:TOP_N]
-    relevant = [a for a in top if is_relevant(term, a)]
-    credible = [a for a in relevant if (a.get("userRatingCount") or 0) >= CREDIBLE_MIN_RATINGS]
+def _best_rating_and_freshness(credible):
+    """(best rating, days since the freshest update) across the credible incumbents."""
     rs = [a.get("averageUserRating") or 0 for a in credible]
     br = round(max(rs), 2) if rs else None
     ds = [d for a in credible if (d := days_since(a.get("currentVersionReleaseDate"))) is not None]
     fresh = min(ds) if ds else None
-    n_credible, n_relevant = len(credible), len(relevant)
+    return br, fresh
 
+
+def _competition(n_credible):
+    if n_credible >= 8:
+        return "high"
+    return "medium" if n_credible >= 3 else "low"
+
+
+def _satisfaction(br, fresh, n_credible):
     if n_credible == 0:
-        satisfaction = "none"
-    elif br >= 4.5 and fresh is not None and fresh <= 180 and n_credible >= 2:
-        satisfaction = "high"
-    elif br >= 4.0 and fresh is not None and fresh <= 365:
-        satisfaction = "medium"
-    else:
-        satisfaction = "low"
+        return "none"
+    if br >= 4.5 and fresh is not None and fresh <= 180 and n_credible >= 2:
+        return "high"
+    if br >= 4.0 and fresh is not None and fresh <= 365:
+        return "medium"
+    return "low"
 
+
+def _gap_type(n_relevant, n_credible, fresh, br, satisfaction):
     if n_relevant == 0:
-        gap_type = "absent-in-store"
-    elif n_credible == 0:
-        gap_type = "nascent"
-    elif fresh is not None and fresh > 365:
-        gap_type = "stale"
-    elif br is not None and br < 3.5:
-        gap_type = "low-quality"
-    elif satisfaction == "high":
-        gap_type = "served"
-    else:
-        gap_type = "thin"
+        return "absent-in-store"
+    if n_credible == 0:
+        return "nascent"
+    if fresh is not None and fresh > 365:
+        return "stale"
+    if br is not None and br < 3.5:
+        return "low-quality"
+    if satisfaction == "high":
+        return "served"
+    return "thin"
 
-    competition = "high" if n_credible >= 8 else "medium" if n_credible >= 3 else "low"
-    if discovery_channel == "community":
-        supply_confidence = "low"
-    elif n_relevant == 0 and len(results) > 0:
-        supply_confidence = "low"
-    else:
-        supply_confidence = "medium"
 
+def _gap_verdict(gap_type, satisfaction, supply_confidence):
     if gap_type in ("absent-in-store", "nascent", "stale", "low-quality") and satisfaction in ("none", "low"):
-        verdict = "CANDIDATE" if supply_confidence != "low" else "CANDIDATE*"
-    elif satisfaction == "medium" or gap_type == "thin":
-        verdict = "WATCH"
-    else:
-        verdict = "REJECT"
+        return "CANDIDATE" if supply_confidence != "low" else "CANDIDATE*"
+    if satisfaction == "medium" or gap_type == "thin":
+        return "WATCH"
+    return "REJECT"
 
+
+def _market_leader(relevant):
+    """(market_size, leader_rating, disruption) for the most-used relevant incumbent."""
     # --- DISRUPTION LENS: proven market (high usage) + beatable leader (mediocre rating).
     # The opposite of the gap lens — a crowded, hated category (Quizlet/Splitwise-style) is a
     # target, not a reject. market_size = review count of the most-used RELEVANT incumbent. ---
-    market_size = max((a.get("userRatingCount") or 0) for a in relevant) if relevant else 0
-    leader = max(relevant, key=lambda a: a.get("userRatingCount") or 0) if relevant else None
-    leader_rating = round(leader.get("averageUserRating"), 2) if leader and leader.get("averageUserRating") else None
+    if not relevant:
+        return 0, None, False
+    market_size = max((a.get("userRatingCount") or 0) for a in relevant)
+    leader = max(relevant, key=lambda a: a.get("userRatingCount") or 0)
+    leader_rating = round(leader.get("averageUserRating"), 2) if leader.get("averageUserRating") else None
     disruption = market_size >= 8000 and leader_rating is not None and 1.0 < leader_rating <= 4.2
+    return market_size, leader_rating, disruption
+
+
+def analyze(term, results, discovery_channel=None):
+    top = results[:TOP_N]
+    relevant = [a for a in top if is_relevant(term, a)]
+    credible = [a for a in relevant if (a.get("userRatingCount") or 0) >= CREDIBLE_MIN_RATINGS]
+    br, fresh = _best_rating_and_freshness(credible)
+    n_credible, n_relevant = len(credible), len(relevant)
+
+    satisfaction = _satisfaction(br, fresh, n_credible)
+    gap_type = _gap_type(n_relevant, n_credible, fresh, br, satisfaction)
+    competition = _competition(n_credible)
+    low_confidence = discovery_channel == "community" or (n_relevant == 0 and len(results) > 0)
+    supply_confidence = "low" if low_confidence else "medium"
+    verdict = _gap_verdict(gap_type, satisfaction, supply_confidence)
+
+    market_size, leader_rating, disruption = _market_leader(relevant)
     if disruption:
         verdict = "DISRUPT"  # override so proven-but-hated markets surface instead of REJECTing as "served"
 
@@ -288,6 +310,37 @@ def load_groups_json(path):
     return recs, cfg.get("store", "us")
 
 
+def _done_key(line):
+    """(industry, canonical_query) of an already-written record line, else None (malformed rows)."""
+    try:
+        rec = json.loads(line)
+        return (rec["industry"], rec["canonical_query"])
+    except Exception:  # noqa: BLE001
+        return None
+
+
+def _load_done(out_path):
+    if not os.path.exists(out_path):
+        return set()
+    try:
+        with open(out_path, encoding="utf-8") as f:
+            return {key for key in map(_done_key, f) if key is not None}
+    except OSError as e:
+        raise StageError(f"Error reading existing records from {out_path}: {e}") from e
+
+
+def _record_failure(counts, abort):
+    """Count a failed fetch; trip the batch breaker after 15 consecutive failures. Caller holds the lock."""
+    counts["fail"] += 1
+    if counts["consec"] >= 15 and not abort.is_set():
+        abort.set()
+        print(
+            f"  ~~ breaker: ABORTING batch after {counts['fail']} fails (15 consecutive); "
+            f"{counts['ok']} scored this batch, pending preserved for next cooldown ~~",
+            flush=True,
+        )
+
+
 def run(
     keywords_path=None,
     config_path=GROUPS_PATH,
@@ -313,18 +366,7 @@ def run(
     # RESUME: skip keywords already scored. Key on (industry, canonical_query): the same
     # phrase recurs across verticals (e.g. "medication tracker" in pets vs. seniors) as a
     # DISTINCT opportunity, so a keyword-only key would skip the second vertical's record.
-    done = set()
-    if os.path.exists(out_path):
-        try:
-            with open(out_path, encoding="utf-8") as f:
-                for line in f:
-                    try:
-                        rec = json.loads(line)
-                        done.add((rec["industry"], rec["canonical_query"]))
-                    except Exception:  # noqa: BLE001
-                        pass
-        except OSError as e:
-            raise StageError(f"Error reading existing records from {out_path}: {e}") from e
+    done = _load_done(out_path)
     pending = [k for k in kwrecs if (k["name"], k["keyword"]) not in done]
     if max_n:
         pending = pending[:max_n]
@@ -347,14 +389,7 @@ def run(
                 counts["consec"] = 0 if ok else counts.get("consec", 0) + 1
                 if not ok:
                     # throttled/failed fetch: DO NOT write (avoids false 'absent'); pending preserved
-                    counts["fail"] += 1
-                    if counts["consec"] >= 15 and not abort.is_set():
-                        abort.set()
-                        print(
-                            f"  ~~ breaker: ABORTING batch after {counts['fail']} fails (15 consecutive); "
-                            f"{counts['ok']} scored this batch, pending preserved for next cooldown ~~",
-                            flush=True,
-                        )
+                    _record_failure(counts, abort)
                     return False
                 sig = analyze(kw["keyword"], results, discovery_channel=kw.get("discovery_channel"))
                 rec = to_record(kw, kw["keyword"], sig, captured_at)

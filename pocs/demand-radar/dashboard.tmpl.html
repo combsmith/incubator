@@ -322,21 +322,19 @@ const days = d => {
 };
 const fmt = n => n==null?"—":n.toLocaleString();
 
+const matchesFacets = x =>
+  (!state.ch || x.ch===state.ch) && (!state.gap || x.gap===state.gap) &&
+  (!state.vert || x.vert===state.vert) && (!state.ma || x.needsMA);
+const matchesLens = x => state.lens==="disrupt" ? !!x.disrupt : state.lens==="gap" ? !x.disrupt : true;
+// rate filter values are "" (all) | "star" | "maybe" | "none" (unrated)
+const matchesRating = x => !state.rate || ((ratings[rkey(x)]||{}).r || "none")===state.rate;
+function matchesQuery(x){
+  if(!state.q) return true;
+  const q=state.q.toLowerCase();
+  return x.kw.toLowerCase().includes(q)||x.vert.includes(q);
+}
 function filtered(){
-  let a = DATA.filter(x=>{
-    if(state.ch && x.ch!==state.ch) return false;
-    if(state.gap && x.gap!==state.gap) return false;
-    if(state.vert && x.vert!==state.vert) return false;
-    if(state.ma && !x.needsMA) return false;
-    if(state.lens==="disrupt" && !x.disrupt) return false;
-    if(state.lens==="gap" && x.disrupt) return false;
-    const r = (ratings[rkey(x)]||{}).r || "none";
-    if(state.rate==="star" && r!=="star") return false;
-    if(state.rate==="maybe" && r!=="maybe") return false;
-    if(state.rate==="none" && r!=="none") return false;
-    if(state.q){ const q=state.q.toLowerCase(); if(!(x.kw.toLowerCase().includes(q)||x.vert.includes(q))) return false; }
-    return true;
-  });
+  const a = DATA.filter(x=> matchesFacets(x) && matchesLens(x) && matchesRating(x) && matchesQuery(x));
   a.sort(SORTS[state.sort] || SORTS.score);
   return a;
 }
@@ -376,13 +374,9 @@ const gripeHTML = g => `<div class="gripe"><span class="gr">${(g.c||[]).map(esc)
 const wedgeHTML = w => `<div class="wedge">${esc(w)}</div>`;
 const volClass = v => v>=15 ? "good" : "mut";
 
-function rowHTML(x,i){
+function chipsHTML(x){
   const g = GAP[x.gap]||{c:"mut",d:"var(--ink-3)",label:x.gap};
-  const key = rkey(x);
-  const r = (ratings[key]||{});
-  const foc = i===state.focus ? " focus":"";
-  const open = state.expanded===key;
-  const chips = [
+  return [
     x.disrupt ? disruptChip(x):"",
     x.resented ? `<span class="chip resent">🔥 ${Math.round(x.resentFrac*100)}% resent · ${(x.resentCats||[]).map(esc).join("/")}</span>`:"",
     `<span class="chip vert">${esc(cap(x.vert))}</span>`,
@@ -394,36 +388,59 @@ function rowHTML(x,i){
     x.trust==="unverified-absent" ? `<span class="chip mut">unverified gap</span>`:"",
     x.vol!=null ? `<span class="chip ${volClass(x.vol)}">MA vol ${x.vol}</span>`:"",
   ].filter(Boolean).join("");
+}
 
-  let detail="";
-  if(open){
-    const apps = (x.apps||[]).filter(a=>a.n).map(a=>`<div class="appr">
+function appsHTML(x){
+  return (x.apps||[]).filter(a=>a.n).map(a=>`<div class="appr">
       <span class="an">${esc(a.n)}</span>
       <span class="ar">${a.r!=null?`<span class="stars">${stars(a.r)}</span> ${a.r.toFixed(2)}`:"no rating"} <span style="color:var(--ink-3)">· ${fmt(a.c)}</span></span>
       <span class="au">${days(a.u)}</span></div>`).join("") || `<div class="hint">No relevant app matched on the App Store.</div>`;
-    detail = `<div class="detail">
-      <div><h4>Existing apps (the supply)</h4><div class="apps">${apps}</div></div>
+}
+
+function leaderHTML(x){
+  return `${x.leaderR!=null?x.leaderR+"★":"—"}${x.leaderApp?` · <span style="font-weight:400;color:var(--ink-2)">${esc(x.leaderApp)}</span>`:""}`;
+}
+
+function gripesHTML(x){
+  if(!x.resented) return "";
+  return `<div class="gripes"><h4 style="margin:10px 0 7px">🔥 Why users are leaving · ${Math.round(x.resentFrac*100)}% of recent 1–3★ reviews</h4>${(x.gripes||[]).map(gripeHTML).join("")}</div>`;
+}
+
+function wedgesHTML(x){
+  if(!(x.wedge&&x.wedge.length)) return "";
+  return `<div class="gripes"><h4 style="margin:10px 0 7px">🎯 How to win · the wedge</h4>${x.wedge.map(wedgeHTML).join("")}</div>`;
+}
+
+function detailHTML(x,key,r){
+  return `<div class="detail">
+      <div><h4>Existing apps (the supply)</h4><div class="apps">${appsHTML(x)}</div></div>
       <div><h4>Signals</h4><div class="sig">
         <div class="sigrow"><span>Signal score</span><b>${x.score.toFixed(1)} / 10</b></div>
         <div class="sigrow"><span>Best incumbent rating</span><b>${x.bestRating!=null?x.bestRating.toFixed(2)+"★":"—"}</b></div>
         <div class="sigrow"><span>Freshest incumbent</span><b>${days(x.fresh)}</b></div>
         <div class="sigrow"><span>Relevant incumbents</span><b>${x.relInc!=null?x.relInc:"—"}</b></div>
         <div class="sigrow"><span>Market size · top incumbent reviews</span><b>${fmt(x.market)}</b></div>
-        <div class="sigrow"><span>Leader rating</span><b>${x.leaderR!=null?x.leaderR+"★":"—"}${x.leaderApp?` · <span style="font-weight:400;color:var(--ink-2)">${esc(x.leaderApp)}</span>`:""}</b></div>
+        <div class="sigrow"><span>Leader rating</span><b>${leaderHTML(x)}</b></div>
         ${x.disrupt?`<div class="sigrow"><span>Disruption score</span><b style="color:var(--disrupt)">${x.dScore}</b></div>`:""}
-        ${x.resented?`<div class="gripes"><h4 style="margin:10px 0 7px">🔥 Why users are leaving · ${Math.round(x.resentFrac*100)}% of recent 1–3★ reviews</h4>${(x.gripes||[]).map(gripeHTML).join("")}</div>`:""}
-        ${x.wedge&&x.wedge.length?`<div class="gripes"><h4 style="margin:10px 0 7px">🎯 How to win · the wedge</h4>${x.wedge.map(wedgeHTML).join("")}</div>`:""}
+        ${gripesHTML(x)}
+        ${wedgesHTML(x)}
         <div class="sigrow"><span>Demand (autocomplete)</span><b>${x.app? "app-intent ✓":"—"} · ${x.bi}</b></div>
         <div class="sigrow"><span>Community (${esc(x.commSrc||"—")})</span><b>${fmt(x.comm)}</b></div>
         <div class="note"><textarea aria-label="Notes on ${esc(x.kw)}" placeholder="Notes on ${esc(x.kw)}…" data-note="${esc(key)}">${esc(r.note||"")}</textarea></div>
       </div></div></div>`;
-  }
+}
+
+function rowHTML(x,i){
+  const key = rkey(x);
+  const r = (ratings[key]||{});
+  const foc = i===state.focus ? " focus":"";
+  const detail = state.expanded===key ? detailHTML(x,key,r) : "";
   return `<article class="row${foc}${x.disrupt?' dt':''}" data-kw="${esc(key)}" data-i="${i}">
     <div class="rank">#${i+1}<span class="sc">${x.score.toFixed(1)}</span>
       <span class="meter"><i style="width:${x.score/10*100}%"></i></span></div>
     <div class="body">
       <div class="kw"><button data-expand="${esc(key)}">${esc(x.kw)}</button></div>
-      <div class="chips">${chips}</div>
+      <div class="chips">${chipsHTML(x)}</div>
       ${detail}
     </div>
     <div class="rate" role="group" aria-label="Rate ${esc(x.kw)}">
@@ -493,18 +510,24 @@ if(window.ResizeObserver) new ResizeObserver(syncBarH).observe(barEl);
 syncBarH();
 
 /* keyboard rating */
-const KEY_RATE = { s:"star", m:"maybe", x:"pass" };
+const RATE_KEYS = {s:"star", m:"maybe", x:"pass"};
+const focusedRow = () => state.focus>=0 ? cur[state.focus] : undefined;
+const onControl = e => !!(e.target.closest&&e.target.closest("button,a,[role=button],.vbar"));
+function moveFocus(e, k){
+  e.preventDefault(); if(!cur.length) return;
+  state.focus = k==="j" ? Math.min(cur.length-1,state.focus+1) : Math.max(0,state.focus-1);
+  render(); const el=$(`.row[data-i="${state.focus}"]`); if(el) el.scrollIntoView({block:"nearest",behavior:"smooth"});
+}
 document.addEventListener("keydown", e=>{
   if(/^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName)) return;
   const k=e.key.toLowerCase();
-  if(k==="j"||k==="k"){ e.preventDefault(); if(!cur.length) return;
-    state.focus = k==="j" ? Math.min(cur.length-1,state.focus+1) : Math.max(0,state.focus-1);
-    render(); const el=$(`.row[data-i="${state.focus}"]`); if(el) el.scrollIntoView({block:"nearest",behavior:"smooth"});
-  } else if((k==="s"||k==="m"||k==="x")&&state.focus>=0&&cur[state.focus]){
-    e.preventDefault(); const key=rkey(cur[state.focus]); setRate(key, KEY_RATE[k]);
+  const row = focusedRow();
+  if(k==="j"||k==="k"){ moveFocus(e, k);
+  } else if(Object.hasOwn(RATE_KEYS, k)&&row){
+    e.preventDefault(); const key=rkey(row); setRate(key, RATE_KEYS[k]);
     if(!filtered().some(x=>rkey(x)===key)){ state.focus=-1; render(); }
-  } else if(k==="enter"&&state.focus>=0&&cur[state.focus]&&!(e.target.closest&&e.target.closest("button,a,[role=button],.vbar"))){
-    e.preventDefault(); const key=rkey(cur[state.focus]); state.expanded=state.expanded===key?null:key; render();
+  } else if(k==="enter"&&row&&!onControl(e)){
+    e.preventDefault(); const key=rkey(row); state.expanded=state.expanded===key?null:key; render();
   }
 });
 

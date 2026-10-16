@@ -92,30 +92,40 @@ IN_PATH = os.path.join(HERE, "output", "keywords.jsonl")
 OUT_PATH = os.path.join(HERE, "output", "keywords.broad.jsonl")
 
 
+def _done_key(line):
+    """(vertical, keyword) for a successfully scored output row, else None (incl. malformed rows)."""
+    try:
+        rec = json.loads(line)
+        # Only treat a keyword as done if it has a valid score; failed rows
+        # (broad_interest is None) stay pending so a resume retries them.
+        # Key on (vertical, keyword): the same phrase recurs across verticals
+        # (e.g. "medication tracker" in pets vs. seniors) as a DISTINCT
+        # opportunity, so a keyword-only key would drop the second vertical.
+        if rec.get("broad_interest") is not None:
+            return (rec.get("vertical"), rec["keyword"])
+    except Exception:  # noqa: BLE001
+        pass
+    return None
+
+
+def _load_done(out):
+    """Keys already scored in a previous (resumed) run's output file."""
+    if not os.path.exists(out):
+        return set()
+    try:
+        with open(out, encoding="utf-8") as f:
+            return {key for key in map(_done_key, f) if key is not None}
+    except OSError as e:
+        raise StageError(f"Error reading existing broad keywords from {out}: {e}") from e
+
+
 def run(inp=IN_PATH, out=OUT_PATH, workers=8, engine="ddg"):
     try:
         with open(inp, encoding="utf-8") as f:
             kws = [json.loads(line) for line in f]
     except (OSError, ValueError) as e:  # file-access / malformed JSON — report, don't traceback
         raise StageError(f"Error reading input keywords from {inp}: {e}") from e
-    done = set()
-    if os.path.exists(out):
-        try:
-            with open(out, encoding="utf-8") as f:
-                for line in f:
-                    try:
-                        rec = json.loads(line)
-                        # Only treat a keyword as done if it has a valid score; failed rows
-                        # (broad_interest is None) stay pending so a resume retries them.
-                        # Key on (vertical, keyword): the same phrase recurs across verticals
-                        # (e.g. "medication tracker" in pets vs. seniors) as a DISTINCT
-                        # opportunity, so a keyword-only key would drop the second vertical.
-                        if rec.get("broad_interest") is not None:
-                            done.add((rec.get("vertical"), rec["keyword"]))
-                    except Exception:  # noqa: BLE001
-                        pass
-        except OSError as e:
-            raise StageError(f"Error reading existing broad keywords from {out}: {e}") from e
+    done = _load_done(out)
     pending = [k for k in kws if (k.get("vertical"), k["keyword"]) not in done]
     print(f"total={len(kws)} done={len(done)} pending={len(pending)} workers={workers}", flush=True)
 

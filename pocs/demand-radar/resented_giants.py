@@ -161,9 +161,8 @@ def scan(reviews):
     }
 
 
-def run(inp=IN_PATH, out_path=OUT_PATH, min_market=8000, max_n=0, sleep=2.2):
-    with open(inp, encoding="utf-8") as f:
-        records = [json.loads(line) for line in f]
+def _collect_leaders(records, min_market):
+    """Market leader per proven market (>= min_market reviews), keyed by lowercased app name."""
     leaders = {}
     for r in records:
         ms = r["supply"].get("market_size") or 0
@@ -184,12 +183,54 @@ def run(inp=IN_PATH, out_path=OUT_PATH, min_market=8000, max_n=0, sleep=2.2):
                 "kw": r["canonical_query"],
                 "leaderR": r["supply"].get("leader_rating"),
             }
+    return leaders
 
-    if os.path.exists(out_path):
-        with open(out_path, encoding="utf-8") as f:
-            out = json.load(f)
-    else:
-        out = {}
+
+def _load_out(out_path):
+    if not os.path.exists(out_path):
+        return {}
+    with open(out_path, encoding="utf-8") as f:
+        return json.load(f)
+
+
+def _process_leader(L, min_market, sleep):
+    """Look up + scan one leader's low reviews; return its output entry."""
+    try:
+        tid = L["id"] or resolve_id(L["app"])
+    except Exception:  # noqa: BLE001 — lookup failed (timeout/throttle): retry on a later run
+        time.sleep(sleep)
+        return {**L, "resented": False, "note": UNFETCHED}
+    time.sleep(sleep)
+    if not tid:
+        return {**L, "resented": False, "note": "no-id"}
+    reviews = fetch_low_reviews(tid)
+    time.sleep(sleep)
+    if reviews is None:
+        # Marked, not scored: "no sample" is not "not resented". The marker makes the
+        # next run retry this leader (after any never-attempted ones).
+        return {**L, "id": tid, "resented": False, "note": UNFETCHED}
+    sc = scan(reviews)
+    resented = L["market"] >= min_market and sc["switch_hits"] >= 4 and sc["resent_frac"] >= 0.25
+    return {**L, "id": tid, **sc, "resented": resented}
+
+
+def _print_summary(out):
+    rg = sorted(
+        [v for v in out.values() if v.get("resented")], key=lambda v: -(v["resent_frac"] * (v["market"] ** 0.5))
+    )
+    print(f"\nRESENTED GIANTS: {len(rg)}")
+    for v in rg[:20]:
+        cats = ",".join(c for c in SWITCH if v.get("cat_hits", {}).get(c))
+        print(
+            f"  {v.get('leaderR')}star /{v['market']:>9,}  resent={int(v['resent_frac'] * 100)}% [{cats}]  {v['app'][:34]}  (e.g. '{v['kw']}' [{v['vert']}])"
+        )
+
+
+def run(inp=IN_PATH, out_path=OUT_PATH, min_market=8000, max_n=0, sleep=2.2):
+    with open(inp, encoding="utf-8") as f:
+        records = [json.loads(line) for line in f]
+    leaders = _collect_leaders(records, min_market)
+    out = _load_out(out_path)
     # Leaders whose reviews could not be fetched last time are retried, but AFTER the ones
     # never attempted — so with --max a persistently failing leader cannot hold a batch slot
     # run after run and starve the rest.
@@ -202,29 +243,10 @@ def run(inp=IN_PATH, out_path=OUT_PATH, min_market=8000, max_n=0, sleep=2.2):
 
     unfetched = 0
     for i, k in enumerate(todo):
-        L = leaders[k]
-        try:
-            tid = L["id"] or resolve_id(L["app"])
-        except Exception:  # noqa: BLE001 — lookup failed (timeout/throttle): retry on a later run
-            out[k] = {**L, "resented": False, "note": UNFETCHED}
+        out[k] = _process_leader(leaders[k], min_market, sleep)
+        note = out[k].get("note")  # set only when the leader could not be scored
+        if note == UNFETCHED:
             unfetched += 1
-            time.sleep(sleep)
-            continue
-        time.sleep(sleep)
-        if not tid:
-            out[k] = {**L, "resented": False, "note": "no-id"}
-            continue
-        reviews = fetch_low_reviews(tid)
-        time.sleep(sleep)
-        if reviews is None:
-            # Marked, not scored: "no sample" is not "not resented". The marker makes the
-            # next run retry this leader (after any never-attempted ones).
-            out[k] = {**L, "id": tid, "resented": False, "note": UNFETCHED}
-            unfetched += 1
-            continue
-        sc = scan(reviews)
-        resented = L["market"] >= min_market and sc["switch_hits"] >= 4 and sc["resent_frac"] >= 0.25
-        out[k] = {**L, "id": tid, **sc, "resented": resented}
         if (i + 1) % 10 == 0:
             with open(out_path, "w", encoding="utf-8") as f:
                 json.dump(out, f)
@@ -235,15 +257,7 @@ def run(inp=IN_PATH, out_path=OUT_PATH, min_market=8000, max_n=0, sleep=2.2):
 
     with open(out_path, "w", encoding="utf-8") as f:
         json.dump(out, f)
-    rg = sorted(
-        [v for v in out.values() if v.get("resented")], key=lambda v: -(v["resent_frac"] * (v["market"] ** 0.5))
-    )
-    print(f"\nRESENTED GIANTS: {len(rg)}")
-    for v in rg[:20]:
-        cats = ",".join(c for c in SWITCH if v.get("cat_hits", {}).get(c))
-        print(
-            f"  {v.get('leaderR')}star /{v['market']:>9,}  resent={int(v['resent_frac'] * 100)}% [{cats}]  {v['app'][:34]}  (e.g. '{v['kw']}' [{v['vert']}])"
-        )
+    _print_summary(out)
     if unfetched:
         print(f"\n{unfetched} leader(s) could not be looked up or had no fetchable reviews; marked for retry")
     print(f"\n-> {out_path}")
