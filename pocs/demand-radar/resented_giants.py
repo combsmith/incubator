@@ -140,7 +140,7 @@ def fetch_low_reviews(tid):
 
 def scan(reviews):
     n = len(reviews)
-    cat_hits = {c: 0 for c in CATS}
+    cat_hits = dict.fromkeys(CATS, 0)
     gripes = []
     switch_hits = 0
     for rt, title, body in reviews:

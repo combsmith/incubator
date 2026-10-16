@@ -131,7 +131,8 @@ class TestResentScan:
 
     def test_empty_reviews(self):
         out = rg.scan([])
-        assert out["resent_frac"] == 0.0 and out["gripes"] == []
+        assert out["resent_frac"] == 0.0
+        assert out["gripes"] == []
 
     def test_gripe_terms_match_at_word_boundaries(self):
         # 'ads' must not match 'heads'; 'charge' must not match 'discharge'
@@ -205,13 +206,16 @@ class TestExportPure:
             },
         }
         ms, lr, lapp, tgt = dash.disruption(rec)
-        assert ms == 50000 and lapp == "Mood Tracker Pro" and tgt is True
+        assert ms == 50000
+        assert lapp == "Mood Tracker Pro"
+        assert tgt is True
 
     def test_wedge_from(self):
         assert dash.wedge_from(None) is None
         assert dash.wedge_from({"cat_hits": {}}) is None
         w = dash.wedge_from({"cat_hits": {"pricing": 5, "ads": 2}})
-        assert len(w) == 2 and "money model" in w[0]  # pricing ranked first
+        assert len(w) == 2
+        assert "money model" in w[0]  # pricing ranked first
 
 
 # ───────────────────────── enrich_community.py ─────────────────────────
