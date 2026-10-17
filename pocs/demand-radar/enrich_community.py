@@ -304,7 +304,7 @@ def _forced_reddit_token():
     if cid and sec:
         try:
             rtoken = reddit_token(cid, sec)
-        except (urllib.error.URLError, urllib.error.HTTPError, ValueError, KeyError) as e:
+        except (urllib.error.URLError, ValueError, KeyError, OSError) as e:
             raise StageError(
                 f"Error fetching Reddit token (check REDDIT_CLIENT_ID/REDDIT_CLIENT_SECRET and network): {e}"
             ) from e
