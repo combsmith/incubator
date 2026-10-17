@@ -403,6 +403,20 @@ class TestEnrichRun:
         enrich.run(inp=inp, out=str(tmp_path / "o.jsonl"), source="reddit", sleep=0)
         assert calls == [("reddit", "dog log", "tok-id-secret")]
 
+    def test_forced_reddit_token_timeout_is_a_stage_error(self, tmp_path, write_jsonl, monkeypatch):
+        monkeypatch.setenv("REDDIT_CLIENT_ID", "id")
+        monkeypatch.setenv("REDDIT_CLIENT_SECRET", "secret")
+
+        def boom(cid, sec):
+            raise TimeoutError("timed out")
+
+        monkeypatch.setattr(enrich, "reddit_token", boom)
+        inp = write_jsonl(tmp_path / "r.jsonl", [make_record("dog log")])
+        out = tmp_path / "o.jsonl"
+        with pytest.raises(errors.StageError, match="Error fetching Reddit token"):
+            enrich.run(inp=inp, out=str(out), source="reddit", sleep=0)
+        assert not out.exists()
+
 
 class TestEnrichMain:
     def test_passes_cli_options(self, argv, monkeypatch):
