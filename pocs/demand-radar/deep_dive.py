@@ -218,7 +218,7 @@ def _tally_loves(high):
 
 
 def _collect_wishes(revs):
-    """Distinct (case-insensitive) mid-length "I wish..." phrases, in review order."""
+    """Distinct (case-insensitive) mid-length "I wish..." phrases, in the order of the reviews passed in."""
     wishes = []
     for _rt, _t, b in revs:
         for m in WISH_RE.findall(b):
@@ -234,7 +234,7 @@ def analyze_reviews(revs):
     high = [x for x in revs if x[0] >= 4]
     gcat, quotes, resenting = _tally_gripes(low)
     loves = _tally_loves(high)
-    wishes = _collect_wishes(revs)  # original newest-first order, not grouped by rating
+    wishes = _collect_wishes(low + high)  # preserve original order: 1-3★ reviews first, then 4-5★
     return {
         "n": len(revs),
         "n_low": len(low),
