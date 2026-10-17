@@ -94,6 +94,7 @@ CAT_RE = {c: cat_pattern(kws) for c, kws in CATS.items()}
 
 
 def get(url):
+    """Fetch raw bytes from URL with a user agent header."""
     return urllib.request.urlopen(urllib.request.Request(url, headers={"User-Agent": UA}), timeout=15).read()
 
 
@@ -139,6 +140,7 @@ def fetch_low_reviews(tid):
 
 
 def scan(reviews):
+    """Categorize low-rated reviews by gripe type and compute resentment fraction."""
     n = len(reviews)
     cat_hits = dict.fromkeys(CATS, 0)
     gripes = []
@@ -215,6 +217,7 @@ def _process_leader(L, min_market, sleep):
 
 
 def _print_summary(out):
+    """Print top resented giants ranked by resent % and market size."""
     rg = sorted(
         [v for v in out.values() if v.get("resented")], key=lambda v: -(v["resent_frac"] * (v["market"] ** 0.5))
     )
@@ -227,6 +230,7 @@ def _print_summary(out):
 
 
 def run(inp=IN_PATH, out_path=OUT_PATH, min_market=8000, max_n=0, sleep=2.2):
+    """Find and score resented market leaders; resume-aware and checkpointed."""
     with open(inp, encoding="utf-8") as f:
         records = [json.loads(line) for line in f]
     leaders = _collect_leaders(records, min_market)
@@ -265,6 +269,7 @@ def run(inp=IN_PATH, out_path=OUT_PATH, min_market=8000, max_n=0, sleep=2.2):
 
 
 def main():
+    """CLI entry point for resented-giants detection (review-text disruption signal)."""
     ap = argparse.ArgumentParser()
     ap.add_argument("--min-market", type=int, default=8000)
     ap.add_argument("--max", type=int, default=0)

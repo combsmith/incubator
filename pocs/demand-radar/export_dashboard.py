@@ -19,10 +19,12 @@ DISRUPT_USERS, DISRUPT_RATING = 8000, 4.2
 
 
 def toks(q):
+    """Extract content tokens (alphanumeric words >= 4 chars, excluding stopwords)."""
     return [w for w in re.findall(r"[a-z0-9]+", q.lower()) if w not in STOP and len(w) >= 4]
 
 
 def name_rel(name, q):
+    """Check if all query tokens appear as whole words in app name (word-boundary matching)."""
     # Whole-word match: tokenize both sides and require every query token to be a WHOLE word
     # in the name, so "counter" no longer matches "encounter" and picks a wrong leaderApp.
     t = toks(q)
@@ -31,6 +33,7 @@ def name_rel(name, q):
 
 
 def load_labels():
+    """Load MobileAction labels from file as dict keyed by lowercase keyword."""
     p = os.path.join(HERE, "labels", "mobileaction-labels.json")
     if os.path.exists(p):
         with open(p, encoding="utf-8") as f:
@@ -39,6 +42,7 @@ def load_labels():
 
 
 def load_broad():
+    """Load broad-pass scores as dict mapping keywords to (broad_interest, app_intent)."""
     p = os.path.join(HERE, "output", "keywords.broad.jsonl")
     out = {}
     if os.path.exists(p):
@@ -62,6 +66,7 @@ COMMUNITY_THRESHOLDS = {
 
 
 def cbonus(m, src=None):
+    """Compute community-metric bonus (0/1/2) from mention count and source."""
     if m is None:
         return 0
     corr, thin = COMMUNITY_THRESHOLDS.get(src, (300, 50))
@@ -71,6 +76,7 @@ def cbonus(m, src=None):
 
 
 def load_resented():
+    """Load resented-giants analysis (leader resentment data) as dict."""
     p = os.path.join(HERE, "output", "resented.json")
     if os.path.exists(p):
         with open(p, encoding="utf-8") as f:
@@ -145,12 +151,14 @@ def _magnitude_adj(ch, lab, vol):
 
 
 def _disruption_score(ms, lr, star_dis, res_flag, rg):
+    """Compute disruption score from market size, leader rating, and resentment data."""
     ds_star = math.log10(ms) * max(0.0, 4.6 - lr) if star_dis and ms > 0 and lr else 0.0
     ds_res = math.log10(ms) * rg["resent_frac"] if res_flag and ms > 0 else 0.0
     return round(max(ds_star, ds_res), 2)
 
 
 def _resent_fields(rg, res_flag):
+    """Build resent-fields dict from leader resentment data, or None dict if not resented."""
     if not res_flag:
         return {"resentFrac": None, "resentCats": None, "gripes": None, "wedge": None}
     return {
@@ -224,6 +232,7 @@ def _export_row(r, labels, broad, resented):
 
 
 def main():
+    """Export candidates and disruption targets to dashboard-data.json."""
     labels, broad, resented = load_labels(), load_broad(), load_resented()
     rows = (_export_row(r, labels, broad, resented) for r in load_current(HERE))
     out = [row for row in rows if row is not None]

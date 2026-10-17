@@ -34,6 +34,7 @@ COMMUNITY_THRESHOLDS = {
 
 
 def load_labels():
+    """Load MobileAction labels from file as dict keyed by lowercase keyword."""
     path = os.path.join(HERE, "labels", "mobileaction-labels.json")
     out = {}
     if os.path.exists(path):
@@ -44,6 +45,7 @@ def load_labels():
 
 
 def community_bonus(rec):
+    """Extract community bonus (0/1/2) and mention count from record's community metric."""
     cm = (rec.get("demand") or {}).get("community_metric") or {}
     m = cm.get("mentions")
     if m is None:
@@ -99,6 +101,7 @@ def _magnitude_adj(channel, lab, vol):
 
 
 def _rank_row(r, labels, broad):
+    """Compute ranking row for a candidate record."""
     v = r.get("verdict_heuristic", "")
     gap = r["gap"]["gap_type"]
     comp = r["supply"]["competition_intensity"]
@@ -131,10 +134,12 @@ def _rank_row(r, labels, broad):
 
 
 def _dash(value):
+    """Format value as-is or '—' if None."""
     return value if value is not None else "—"
 
 
 def _table_line(x):
+    """Format ranking row as markdown table line."""
     parts = [x["mag_note"], x.get("trust_note")]
     if x["needs_mag"]:
         parts.append("needs MA ▲")
@@ -147,6 +152,7 @@ def _table_line(x):
 
 
 def _write_starter_list(out, rows, n_records):
+    """Write ranked starter list to markdown file."""
     with open(out, "w", encoding="utf-8") as f:
         f.write("# DemandRadar — idea starter list (ranked)\n\n")
         f.write(f"{len(rows)} non-REJECT candidates from {n_records} keywords. ")
@@ -177,6 +183,7 @@ def _write_starter_list(out, rows, n_records):
 
 
 def main():
+    """Rank non-REJECT candidates and write starter list with scoring breakdown."""
     records = load_current(HERE)
     labels = load_labels()
     broad = load_broad()

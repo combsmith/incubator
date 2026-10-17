@@ -40,6 +40,7 @@ _min_interval = [0.05]  # seconds between calls (~20/s across all workers)
 
 
 def pace():
+    """Rate limit by spacing autocomplete calls globally across all workers."""
     with _pace_lock:
         now = time.time()
         wait_s = max(0.0, _next_at[0] - now)
@@ -57,6 +58,7 @@ ENGINES = {
 
 
 def suggest(term, engine="ddg"):
+    """Fetch search suggestions from the chosen autocomplete engine."""
     base, mk = ENGINES[engine]
     url = base + "?" + urllib.parse.urlencode(mk(term))
     req = urllib.request.Request(url, headers={"User-Agent": UA})
@@ -66,10 +68,12 @@ def suggest(term, engine="ddg"):
 
 
 def _words(text):
+    """Extract lowercase alphanumeric word tokens from text."""
     return set(re.findall(r"[a-z0-9]+", text.lower()))
 
 
 def score(term, suggestions):
+    """Score a keyword based on suggestion count, app intent, and topic relevance."""
     s = [x.lower() for x in suggestions]
     n = len(s)
     app_intent = 1 if any("app" in _words(x) for x in s) else 0
@@ -120,6 +124,7 @@ def _load_done(out):
 
 
 def run(inp=IN_PATH, out=OUT_PATH, workers=8, engine="ddg"):
+    """Score keywords via autocomplete suggestions, resume-aware and streamed to disk."""
     try:
         with open(inp, encoding="utf-8") as f:
             kws = [json.loads(line) for line in f]
@@ -160,6 +165,7 @@ def run(inp=IN_PATH, out=OUT_PATH, workers=8, engine="ddg"):
 
 
 def main():
+    """CLI entry point for broad demand pass (Google/DDG autocomplete scoring)."""
     ap = argparse.ArgumentParser()
     ap.add_argument("--workers", type=int, default=8)
     ap.add_argument("--engine", default="ddg", choices=list(ENGINES))

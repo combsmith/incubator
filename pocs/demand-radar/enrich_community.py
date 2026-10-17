@@ -117,6 +117,7 @@ BUDGET = {"youtube": 90, "stackexchange": 280, "hackernews": 10_000, "reddit": 9
 
 
 def hn_mentions(q):
+    """Fetch Hacker News mention count for a query."""
     url = f"https://hn.algolia.com/api/v1/search?query={urllib.parse.quote(q)}&hitsPerPage=1"
     req = urllib.request.Request(url, headers={"User-Agent": UA})
     return {
@@ -127,6 +128,7 @@ def hn_mentions(q):
 
 
 def se_mentions(q, site):
+    """Fetch Stack Exchange mention count for a query on a specific site."""
     params = urllib.parse.urlencode({"order": "desc", "sort": "activity", "q": q, "site": site, "filter": "total"})
     if os.environ.get("STACKEXCHANGE_KEY"):
         params += "&key=" + urllib.parse.quote(os.environ["STACKEXCHANGE_KEY"])  # noqa: S106
@@ -190,6 +192,7 @@ def yt_mentions(q):
 
 
 def reddit_token(cid, secret):
+    """Fetch Reddit OAuth2 access token using client credentials."""
     data = urllib.parse.urlencode({"grant_type": "client_credentials"}).encode()
     auth = base64.b64encode(f"{cid}:{secret}".encode()).decode()
     req = urllib.request.Request(
@@ -227,6 +230,7 @@ def _query_source(src, q, vert, rtoken):
 
 
 def _is_exhausted(e):
+    """Check if exception indicates source quota exhaustion (403/429/quota error)."""
     # 403/429 status (YouTube reports an exhausted quota as a plain "403 Forbidden")
     # or a quota message: the source is spent for this run.
     return getattr(e, "code", None) in (403, 429) or "429" in str(e) or "quota" in str(e).lower()
@@ -255,6 +259,7 @@ def fetch_for(record, forced, budget_left, rtoken, dead):
 
 
 def recompute(record, cm):
+    """Re-verdict a record based on community metric; return (verdict, note) or (original, None)."""
     if record.get("discovery_channel") != "community":
         return record["verdict_heuristic"], None
     v = record["verdict_heuristic"]
@@ -270,6 +275,7 @@ def recompute(record, cm):
 
 
 def supply_score(r):
+    """Compute priority score from gap type and competition intensity."""
     GAP = {"absent-in-store": 3, "absent": 3, "nascent": 2, "stale": 2, "low-quality": 2, "thin": 1}
     COMP = {"low": 2, "medium": 1, "high": 0}
     return GAP.get(r["gap"]["gap_type"], 0) + COMP.get(r["supply"]["competition_intensity"], 0)
@@ -288,6 +294,7 @@ def default_source():
 
 
 def _check_args(source, max_n, has_youtube_key):
+    """Validate source, max_n, and API key prerequisites; raise StageError if invalid."""
     # A forced source that cannot work would otherwise "succeed" with every target written
     # as source "none" — fail up front instead. (Auto-routing still just skips youtube.)
     if source and source not in BUDGET:
@@ -299,6 +306,7 @@ def _check_args(source, max_n, has_youtube_key):
 
 
 def _forced_reddit_token():
+    """Fetch Reddit OAuth token when reddit source is forced; raise StageError if unavailable."""
     cid, sec = os.environ.get("REDDIT_CLIENT_ID"), os.environ.get("REDDIT_CLIENT_SECRET")
     rtoken = None
     if cid and sec:
@@ -333,6 +341,7 @@ def _apply_metric(r, cm):
 
 
 def run(inp=IN_PATH, out=OUT_PATH, source="", max_n=300, sleep=0.25):
+    """Enrich non-REJECT records with community metrics from multiple sources."""
     # An EMPTY key counts as no key: CI always sets the variable, to "" when the secret is absent.
     has_youtube_key = bool(os.environ.get("YOUTUBE_API_KEY"))
     _check_args(source, max_n, has_youtube_key)
@@ -377,6 +386,7 @@ def run(inp=IN_PATH, out=OUT_PATH, source="", max_n=300, sleep=0.25):
 
 
 def main():
+    """CLI entry point for community enrichment (YouTube/StackExchange/HN/Reddit)."""
     ap = argparse.ArgumentParser()
     ap.add_argument("--source", default=default_source())  # an empty source auto-routes
     ap.add_argument("--max", type=int, default=300)

@@ -141,10 +141,12 @@ def _clip(text, n):
 
 
 def get(url):
+    """Fetch raw bytes from URL with a user agent header."""
     return urllib.request.urlopen(urllib.request.Request(url, headers={"User-Agent": UA}), timeout=20).read()
 
 
 def load_ma_label(kw):
+    """Load MobileAction label for keyword if available, else None."""
     p = os.path.join(HERE, "labels", "mobileaction-labels.json")
     if os.path.exists(p):
         with open(p, encoding="utf-8") as fh:
@@ -156,6 +158,7 @@ def load_ma_label(kw):
 
 
 def competitors(kw, top):
+    """Fetch top N competitors for a keyword from iTunes Search API."""
     d = json.loads(
         get(
             "https://itunes.apple.com/search?"
@@ -204,6 +207,7 @@ def _tally_gripes(low):
 
 
 def _tally_loves(high):
+    """Count which features are praised in high-rated reviews."""
     loves = collections.Counter()
     for _rt, t, b in high:
         hay = (t + " . " + b).lower()
@@ -225,6 +229,7 @@ def _collect_wishes(revs):
 
 
 def analyze_reviews(revs):
+    """Extract gripes, loves, and wishes from review list."""
     low = [x for x in revs if x[0] <= 3]
     high = [x for x in revs if x[0] >= 4]
     gcat, quotes, resenting = _tally_gripes(low)
@@ -252,6 +257,7 @@ WEDGE_TEMPLATES = {
 
 
 def synth_wedge(market_gripes, loves):
+    """Synthesize competitive wedges from market gripes and user loves."""
     total = sum(market_gripes.values()) or 1
     w = []
     for cat, n in sorted(market_gripes.items(), key=lambda x: -x[1]):
@@ -265,6 +271,7 @@ def synth_wedge(market_gripes, loves):
 
 
 def _competitor_row(a):
+    """Convert iTunes app dict into competitor table row."""
     return {
         "app": a.get("trackName"),
         "id": a.get("trackId"),
@@ -289,6 +296,7 @@ def _mine_reviews(c, pages):
 
 
 def _resent_cell(c):
+    """Format resentment % for market table cell."""
     rv = c.get("reviews")
     if rv:
         return f"{int(rv['resent_frac'] * 100)}%"
@@ -296,6 +304,7 @@ def _resent_cell(c):
 
 
 def _market_lines(comps):
+    """Render competitor market table as markdown lines."""
     L = ["## The market — who you're up against\n", "| App | ★ | Ratings | Price | Updated | Resent% |"]
     L.append("|---|--:|--:|---|---|--:|")
     for c in comps:
@@ -309,6 +318,7 @@ def _market_lines(comps):
 
 
 def _opening_lines(comps, market_gripes):
+    """Render gripes + quotes as markdown lines for opening section."""
     L = ["\n## What the market gets wrong — the openings\n"]
     for cat, n in sorted(market_gripes.items(), key=lambda x: -x[1]):
         L.append(f"- **{cat}** — {n} complaint(s) across leaders")
@@ -340,6 +350,7 @@ def _render_brief(kw, ma, comps, market_gripes, loves, wishes, wedge):
 
 
 def main():
+    """CLI entry point for deep-dive analysis (competitors, reviews, wedge brief)."""
     ap = argparse.ArgumentParser()
     ap.add_argument("--keyword", required=True)
     ap.add_argument("--top", type=int, default=8)
