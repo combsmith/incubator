@@ -61,6 +61,7 @@ _jitter = secrets.SystemRandom()  # retry-backoff jitter (OS entropy; no seeded 
 
 
 def pace():
+    """Rate limit by waiting for the next available slot across global call rate."""
     with _pace_lock:
         now = time.time()
         wait = max(0.0, _next_at[0] - now)
@@ -70,6 +71,7 @@ def pace():
 
 
 def fetch(term, country="us", limit=20, entity="software", retries=4):
+    """Fetch results from iTunes Search API with exponential backoff retry logic."""
     params = urllib.parse.urlencode({"term": term, "country": country, "entity": entity, "limit": limit})
     url = f"{ITUNES_SEARCH}?{params}"
     for attempt in range(retries):
@@ -88,6 +90,7 @@ def fetch(term, country="us", limit=20, entity="software", retries=4):
 
 
 def days_since(iso):
+    """Calculate days elapsed since ISO timestamp, or None if parsing fails."""
     if not iso:
         return None
     try:
@@ -97,14 +100,17 @@ def days_since(iso):
 
 
 def content_tokens(term):
+    """Extract content tokens: alphanumeric words >= 4 chars, excluding stopwords."""
     return [w for w in re.findall(r"[a-z0-9]+", (term or "").lower()) if w not in STOP and len(w) >= 4]
 
 
 def _word_set(text):
+    """Extract whole-word tokens (lowercase alphanumeric runs) for word-boundary matching."""
     return set(re.findall(r"[a-z0-9]+", (text or "").lower()))
 
 
 def relevance_score(term, app):
+    """Score how relevant an app is to the search term (word-boundary matching)."""
     toks = content_tokens(term)
     if not toks:
         return 1.0
@@ -117,6 +123,7 @@ def relevance_score(term, app):
 
 
 def is_relevant(term, app):
+    """Check if app's relevance to term meets the threshold."""
     return relevance_score(term, app) >= RELEVANCE_THRESHOLD
 
 
@@ -130,12 +137,14 @@ def _best_rating_and_freshness(credible):
 
 
 def _competition(n_credible):
+    """Classify competition intensity based on credible incumbent count."""
     if n_credible >= 8:
         return "high"
     return "medium" if n_credible >= 3 else "low"
 
 
 def _satisfaction(br, fresh, n_credible):
+    """Rate satisfaction based on existing app rating, freshness, and competitor count."""
     if n_credible == 0:
         return "none"
     if br >= 4.5 and fresh is not None and fresh <= 180 and n_credible >= 2:
@@ -146,6 +155,7 @@ def _satisfaction(br, fresh, n_credible):
 
 
 def _gap_type(n_relevant, n_credible, fresh, br, satisfaction):
+    """Classify the supply gap type based on market conditions."""
     if n_relevant == 0:
         return "absent-in-store"
     if n_credible == 0:
@@ -160,6 +170,7 @@ def _gap_type(n_relevant, n_credible, fresh, br, satisfaction):
 
 
 def _gap_verdict(gap_type, satisfaction, supply_confidence):
+    """Render verdict (CANDIDATE/WATCH/REJECT/DISRUPT) from gap type and satisfaction."""
     if gap_type in ("absent-in-store", "nascent", "stale", "low-quality") and satisfaction in ("none", "low"):
         return "CANDIDATE" if supply_confidence != "low" else "CANDIDATE*"
     if satisfaction == "medium" or gap_type == "thin":
@@ -182,6 +193,7 @@ def _market_leader(relevant):
 
 
 def analyze(term, results, discovery_channel=None):
+    """Analyze search results to extract supply signals and render opportunity verdict."""
     top = results[:TOP_N]
     relevant = [a for a in top if is_relevant(term, a)]
     credible = [a for a in relevant if (a.get("userRatingCount") or 0) >= CREDIBLE_MIN_RATINGS]
@@ -229,6 +241,7 @@ def analyze(term, results, discovery_channel=None):
 
 
 def to_record(group, term, signal, captured_at):
+    """Convert analysis signal into a standardized opportunity record structure."""
     slug = term.lower().replace(" ", "-")
     return {
         "opportunity_id": f"og_{captured_at[:7].replace('-', '_')}_{group['name']}_{slug}",
@@ -267,6 +280,7 @@ def to_record(group, term, signal, captured_at):
 
 
 def load_keywords(path):
+    """Load and interleave keywords from JSONL file across verticals for balanced coverage."""
     by_vert = {}
     with open(path, encoding="utf-8") as f:
         for line in f:
@@ -294,6 +308,7 @@ def load_keywords(path):
 
 
 def load_groups_json(path):
+    """Load keyword groups from JSON config file; return flattened (group, keyword) records."""
     with open(path, encoding="utf-8") as f:
         cfg = json.load(f)
     recs = []
@@ -320,6 +335,7 @@ def _done_key(line):
 
 
 def _load_done(out_path):
+    """Load set of (industry, canonical_query) keys already written to output file."""
     if not os.path.exists(out_path):
         return set()
     try:
@@ -330,7 +346,7 @@ def _load_done(out_path):
 
 
 def _record_failure(counts, abort):
-    """Count a failed fetch; trip the batch breaker after 15 consecutive failures. Caller holds the lock."""
+    """Count a failed fetch and trip breaker after 15 consecutive failures (caller holds lock)."""
     counts["fail"] += 1
     if counts["consec"] >= 15 and not abort.is_set():
         abort.set()
@@ -420,6 +436,7 @@ def run(
 
 
 def main():
+    """CLI entry point for iTunes API scoring of supply keywords."""
     ap = argparse.ArgumentParser()
     ap.add_argument(
         "--source",
