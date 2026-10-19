@@ -74,8 +74,8 @@ Detail in [`market-research.md`](./market-research.md). Takeaway:
 Mapped onto [`ost.md`](./ost.md):
 
 - **Desired outcome (metric):** DemandRadar-sourced Ideas Discussions that reach a decision
-  brief, per quarter. **Current value: 0** — in the three months since the spike merged, no
-  record it produced has been promoted into an Ideas Discussion.
+  brief, per quarter. **Current value: 0** — in the ~9 days since the spike merged
+  (2026-10-10), no record it produced has been promoted into an Ideas Discussion.
 - **Opportunity addressed:** "I cannot tell a real gap from a vibe, and I cannot tell a
   beatable incumbent from a well-rated one."
 - **Proposed solution (built):** a two-lens funnel. **Gap lens** — keyword space (25
@@ -116,12 +116,12 @@ decision-maker should know is still unresolved.
 
 | # | Assumption | If wrong… | Cheapest test | Result |
 |---|-----------|-----------|---------------|--------|
-| 1 | Records the funnel emits will become Ideas Discussions that survive `idea-triage` | Tool runs weekly, changes nothing; the outcome metric stays 0 | Hand-promote the top 3 (watermark remover, white noise, mood tracker) into Ideas Discussions and see whether triage keeps them | **OPEN** — not attempted in 3 months; this is the gate for graduation |
+| 1 | Records the funnel emits will become Ideas Discussions that survive `idea-triage` | Tool runs weekly, changes nothing; the outcome metric stays 0 | Hand-promote the top 3 (watermark remover, white noise, mood tracker) into Ideas Discussions and see whether triage keeps them | **OPEN** — not attempted in the ~9 days since the spike merged; this is the gate for graduation |
 | 2 | The load-bearing signal can be extracted headless from free sources | Needs paid ASO ($) on the critical path; cannot run as a cron | The spike itself | **PROVEN** — 1,250 keywords scored, weekly refresh, stdlib only, no auth except an optional YouTube key |
 | 3 | Supply presence can be judged without a relevance model | Everything reads "served" (`raid dps meter` → decibel meters) | Add graded name/description token match; re-run | **PROVEN essential** — without it the supply layer is meaningless; graded match fixes collisions but branded-incumbent recall is still crude |
 | 4 | Star ratings identify beatable incumbents | Disrupt lens finds nothing | Count proven markets with a >4.6★ leader | **DISPROVEN** — ~89% of proven markets have a >4.6★ leader. Pivoted to review-text resentment: 170 of 314 leaders flagged (Quizlet 4.78★, 46% resentment; BetterSleep 98%) |
 | 5 | Free endpoints tolerate bulk scoring | One-shot scoring of 11k keywords | Burst iTunes Search | **DISPROVEN** — iTunes bans after ~100 calls (~20–30/min cap), Google Suggest after ~6k; Reddit 403s datacenter IPs. Funnel order, pacing, resume and a 403 circuit-breaker follow from this |
-| 6 | App Store "absent" means a gap | False gaps promoted | Check app-store-channel gaps in MobileAction | **PARTLY DISPROVEN** — of 12 app-store starter candidates, only `watermark remover` has real volume; 5 sit at the ~5 floor, 4 are N/A. "Absent" is often a relevance miss, so app-store gaps are down-weighted until volume confirms |
+| 6 | App Store "absent" means a gap | False gaps promoted | Check app-store-channel gaps in MobileAction | **PARTLY DISPROVEN** — of 12 app-store starter candidates, only `watermark remover` has real volume; 5 sit at the ~5 floor, 4 are N/A; the remaining 2 were not recorded in the spike notes, so "1 of 12" is the count of confirmed-volume candidates, not a full breakdown. "Absent" is often a relevance miss, so app-store gaps are down-weighted until volume confirms |
 | 7 | Community metrics from different sources can be compared | Gaming (community-discovered) gaps are mis-ranked against app-store gaps | Normalise per-source cutoffs against the labelled set | **OPEN** — per-source thresholds exist (HN 300/50, SE 25/3, Reddit 10/2, YouTube 50k/2k views) but units are not normalised against each other or against app-store volume |
 | 8 | Demand magnitude can be automated | Every candidate needs a human in a browser | Script MobileAction, or accept manual | **OPEN** — MobileAction is paid and driven by hand through a logged-in session; 22 keywords labelled so far |
 | 9 | Gaps are stable enough to act on | A gap closes before the brief is written (the 2026 AI-flashcard wave closed one in weeks) | Define `recheck_by` per `gap_type` and expire records | **OPEN** — `recheck_by` is in the schema; no decay policy is implemented |

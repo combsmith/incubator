@@ -46,8 +46,8 @@ flowchart TD
 ## Notes
 
 - **Outcome is a metric, not a feature.** The spike optimised the solution space (lenses,
-  ranking, dashboard) and never moved the outcome: no record has been promoted in three
-  months. `OPP4` is where the next effort belongs; see `brief.md` §7.
+  ranking, dashboard) and never moved the outcome: no record has been promoted in the ~9
+  days since the spike merged (2026-10-10). `OPP4` is where the next effort belongs; see `brief.md` §7.
 - **The opportunity space was widened by running it.** `OPP2` (resentment behind good
   ratings) and `OPP3` (instrument blindness) were not in the original concept; they came
   out of the July passes and the October spike respectively.
