@@ -84,8 +84,10 @@ external signal, and it is second-hand.
 - **Platform dependency / rate limits.** Every free endpoint IP-bans bursts: iTunes Search
   (~20–30 calls/min, bans after ~100), Google Suggest (~6k), Reddit (403 from datacenter IPs
   even with OAuth), StackExchange (~300/day), YouTube (~90/day on a free key). A ToS change
-  on any one of them degrades a layer. The pipeline paces, resumes and circuit-breaks, but
-  it cannot make a banned source un-banned.
+  on any one of them degrades a layer. The pipeline paces and resumes; a circuit breaker exists only in the
+  `extract` stage (and it trips after 15 consecutive failures, not on the first 403/429).
+  `broad_pass` and `resented_giants` have none yet and would keep issuing requests into an
+  active ban (see PRD FR-1(d)). Nothing can make a banned source un-banned.
 - **Terms of service.** Store listings and public APIs are used within published limits;
   Reddit's and TikTok's terms were flagged in #44 and not resolved. TikTok is not used.
 - **Lexicon artefact risk.** All three deep dives converge on "fix the money model". If the

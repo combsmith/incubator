@@ -126,9 +126,9 @@ decision-maker should know is still unresolved.
 | 4 | Star ratings identify beatable incumbents | Disrupt lens finds nothing | Count proven markets with a >4.6★ leader | **DISPROVEN** — ~89% of proven markets have a >4.6★ leader. Pivoted to review-text resentment: 170 of 314 leaders flagged (Quizlet 4.78★, 46% resentment; BetterSleep 98%) |
 | 5 | Free endpoints tolerate bulk scoring | One-shot scoring of 11k keywords | Burst iTunes Search | **DISPROVEN** — iTunes bans after ~100 calls (~20–30/min cap), Google Suggest after ~6k; Reddit 403s datacenter IPs. Funnel order, pacing, resume and a 403 circuit-breaker follow from this |
 | 6 | App Store "absent" means a gap | False gaps promoted | Check app-store-channel gaps in MobileAction | **PARTLY DISPROVEN** — of 12 app-store starter candidates, only `watermark remover` has real volume; 5 sit at the ~5 floor, 4 are N/A; the remaining 2 were not recorded in the spike notes, so "1 of 12" is the count of confirmed-volume candidates, not a full breakdown. "Absent" is often a relevance miss, so app-store gaps are down-weighted until volume confirms |
-| 7 | Community metrics from different sources can be compared | Gaming (community-discovered) gaps are mis-ranked against app-store gaps | Normalise per-source cutoffs against the labelled set | **OPEN** — per-source thresholds exist (HN 300/50, SE 25/3, Reddit 10/2, YouTube 50k/2k views) but units are not normalised against each other or against app-store volume |
+| 7 | Community metrics from different sources can be compared | Gaming (community-discovered) gaps are mis-ranked against app-store gaps | Normalise per-source cutoffs against a new human-labelled cross-source community ground-truth set (≥ 20 keywords; the MobileAction set cannot serve — its 9 community labels are all N/A) | **OPEN** — per-source thresholds exist (HN 300/50, SE 25/3, Reddit 10/2, YouTube 50k/2k views) but units are not normalised against each other or against app-store volume |
 | 8 | Demand magnitude can be automated | Every candidate needs a human in a browser | Script MobileAction, or accept manual | **OPEN** — MobileAction is paid and driven by hand through a logged-in session; 34 entries labelled so far (24 app-store, 9 community, 1 baseline) |
-| 9 | Gaps are stable enough to act on | A gap closes before the brief is written (the 2026 AI-flashcard wave closed one in weeks) | Define `recheck_by` per `gap_type` and expire records | **OPEN** — `recheck_by` is in the schema; no decay policy is implemented |
+| 9 | Gaps are stable enough to act on | A gap closes before the brief is written (the 2026 AI-flashcard wave closed one in weeks) | Define `recheck_by` per `gap_type` and expire records | **OPEN** — `recheck_by` is not yet in the schema-v3 records (`extract.to_record` emits no such key); the field itself must be added and persisted records migrated, then a decay policy defined |
 | 10 | The deep-dive brief discriminates between markets | Every brief says the same thing | Compare wedges across the three deep dives | **WEAK** — all three name "fix the money model" as wedge #1. Either paywall resentment is genuinely universal or the gripe lexicon is dominated by one category. Needs a wider sample before trusting a single brief |
 
 ## 7. Recommendation (go / no-go)
@@ -151,7 +151,7 @@ factory the tool feeds, not the tool.
 **What "approved" authorises** (the PRD in this package scopes exactly this, nothing more):
 1. Wire the **handoff**: a reviewed queue, not auto-opened Discussions — a human promotes a
    record and the deep dive lands as `ideas/<new-slug>/market-research.md`.
-2. **Normalise** community metrics against the labelled set; implement `recheck_by` decay.
+2. **Normalise** community metrics against a new community ground-truth set; implement `recheck_by` decay.
 3. **Promote the first three** records by hand to measure whether triage keeps them.
 
 **Graduation trigger** (re-open this brief when met): ≥3 DemandRadar-sourced Ideas

@@ -38,7 +38,7 @@ flowchart TD
     S2 --> A2["Test: do app-store gaps have volume? — 1 of 12 did; MobileAction still manual"]
     S3 --> A3["Test: do stars find targets? — DISPROVEN (~89% of leaders >4.6★); review text found 170/314"]
     S4 --> A4["Test: do deep dives discriminate? — WEAK: all 3 name paywall as wedge #1; widen to ~15 giants"]
-    S5 --> A5["Test: normalise HN/SE/Reddit/YouTube cutoffs against the labelled set — OPEN"]
+    S5 --> A5["Test: normalise HN/SE/Reddit/YouTube cutoffs against a new human-labelled community ground-truth set — OPEN"]
     S6 --> A6["Test: hand-promote top 3 records; does idea-triage keep them? — OPEN, the graduation gate"]
     S7 --> A7["Test: how fast did the July gaps close? — one closed in weeks (AI flashcards); policy OPEN"]
 ```
