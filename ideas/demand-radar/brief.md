@@ -154,17 +154,28 @@ factory the tool feeds, not the tool.
 2. **Normalise** community metrics against a new community ground-truth set; implement `recheck_by` decay.
 3. **Promote the first three** records by hand to measure whether triage keeps them.
 
+**Evidence availability for idea-triage:** The handoff command (`promote.py`) generates
+`market-research.md` only *after* a Discussion reaches Ripe in `idea-triage`, which is too
+late for evidence to inform triage itself. This is intentional: the human opening the
+Discussion will include a record/deep-dive preview taken from the weekly
+`promotion-queue.md` (which exists *before* any Discussion is opened), and triage survival
+is measured on *that* preview. The generated `market-research.md` feeds the downstream
+package/graduation steps. This approach keeps discovery (operator review of the queue) and
+validation (triage) decoupled and allows the same records to flow through multiple triage
+attempts. The first success metric (≥3 DemandRadar Discussions survive triage) measures
+triage on the preview-in-hand at Discussion open time, not on later-generated artifacts.
+
 **Graduation trigger** (re-open this brief when met): ≥3 DemandRadar-sourced Ideas
 Discussions have survived `idea-triage`, and ≥1 has reached a decision brief. At that
 point the question becomes whether to move the tool out of `pocs/` (a "disposable" spike
 should not carry a long-lived cron) into a tooling repo, and whether external users exist.
 
-**Lifecycle note:** `ideas/PACKAGE.md` defines approval and merge of a complete package as
-graduation to the idea's own product repo, which this brief rejects. Approval here is
-therefore scoped to the feeder-tool work above and continues in `pocs/demand-radar/`;
-merging this package must not be read as triggering product-repo graduation. If the
-lifecycle cannot express internal-tooling approval, treat this outcome as a no-go on
-graduation with the POC continuing separately, and amend `ideas/PACKAGE.md` as a follow-up.
+**Lifecycle note:** This brief recommends approval as an internal feeder tool, not as a
+path to product-repo graduation. `ideas/PACKAGE.md` (amended in this commit) now supports
+internal-tooling approvals whose briefs explicitly scope what "approved" authorises and may
+defer product-repo graduation to a downstream trigger. Approval here authorises the
+feeder-tool hardening and handoff work scoped in the PRD, and continues in `pocs/demand-radar/`;
+merging this package must not be read as triggering product-repo graduation.
 
 **Hard gate:** the go/no-go is a human's, applied via `idea:approved`. This brief informs
 that decision; it does not make it.
