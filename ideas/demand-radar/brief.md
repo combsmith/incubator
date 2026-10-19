@@ -173,8 +173,10 @@ that decision; it does not make it.
 
 - **Handoff shape:** queue a human promotes (recommended here) vs. auto-opening Ideas
   Discussions. Auto-opening would add to the 54 untriaged ideas, not reduce them.
-- **Decay policy:** default `recheck_by` window per `gap_type` — stale and complaint-driven
-  gaps close faster than absent ones; no numbers yet.
+- **Decay policy:** default `recheck_by` window per `gap_type` — stale and low-quality
+  gaps close faster than absent ones, and resentment-driven opportunities are keyed from the
+  existing `disruption` flag / resentment score (not a `gap_type`; `extract.analyze` never
+  emits `complaint-driven`), as in PRD FR-5; no numbers yet.
 - **MobileAction:** keep manual (free, slow) or pay for API access gated on
   `discovery_channel = app-store`? Volume floor appears to be ~5; 34 labels is too few to
   calibrate thresholds.
