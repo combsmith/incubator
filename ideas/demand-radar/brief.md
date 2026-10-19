@@ -159,6 +159,13 @@ Discussions have survived `idea-triage`, and ≥1 has reached a decision brief. 
 point the question becomes whether to move the tool out of `pocs/` (a "disposable" spike
 should not carry a long-lived cron) into a tooling repo, and whether external users exist.
 
+**Lifecycle note:** `ideas/PACKAGE.md` defines approval and merge of a complete package as
+graduation to the idea's own product repo, which this brief rejects. Approval here is
+therefore scoped to the feeder-tool work above and continues in `pocs/demand-radar/`;
+merging this package must not be read as triggering product-repo graduation. If the
+lifecycle cannot express internal-tooling approval, treat this outcome as a no-go on
+graduation with the POC continuing separately, and amend `ideas/PACKAGE.md` as a follow-up.
+
 **Hard gate:** the go/no-go is a human's, applied via `idea:approved`. This brief informs
 that decision; it does not make it.
 

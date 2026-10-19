@@ -42,8 +42,10 @@ Two different jobs are being compared here, and it matters which one a competito
 Three structural differences, none of which an existing tool offers (per the 2026-07-21
 scan, unverified):
 
-1. **Continuous, not single-shot.** DemandRadar runs weekly and accumulates coverage of a
-   1,250-keyword priority set; incumbents produce one report per idea on request.
+1. **Continuous, not single-shot.** DemandRadar runs weekly over a 1,250-keyword priority
+   set; incumbents produce one report per idea on request. *Accumulation across runs is not
+   built yet:* the scheduled workflow uploads artifacts only and persists nothing, so each
+   run restarts from the committed snapshot (state persistence is a PRD FR-1 build item).
 2. **Finds, rather than validates.** Input is a vertical lexicon, not a user's idea. The
    output is a ranked list the user did not think of (`watermark remover`, `white noise`
    resentment, 170 resented leaders).

@@ -44,7 +44,7 @@ Grouped by journey. "Must" items are the definition of done for this approval.
 
 | ID | Requirement | Priority |
 |----|-------------|----------|
-| FR-1 | The weekly refresh runs bounded (`--max`, `--rate`), paced, resumable, and never retries a 403/429; a degraded run is labelled as such in the artifact name. **Gap:** `enrich_community.run` re-reads un-enriched `records.jsonl`, enriches only the first `--max` (240 in the workflow) survivors and overwrites `records.enriched.jsonl`, so a weekly run discards community evidence on records beyond the cap (the committed snapshot has more enriched records than one run covers). The refresh must merge prior enrichment or rotate and persist batches | must (bounded run exists; evidence-preserving merge to build) |
+| FR-1 | The weekly refresh runs bounded (`--max`, `--rate`), paced, resumable, and never retries a 403/429; a degraded run is labelled as such in the artifact name. **Gaps:** (a) *State is not persisted across runs.* The workflow checks out read-only and uploads only `dashboard-data.json`, `starter-list.md` and `dashboard.html`, so each run restarts from the same committed snapshot; durable state restoration/persistence must be built before any claim of accumulated coverage. (b) *No stop on first throttle.* `extract.fetch` returns the same `False` for a 403/429 as for any failure and `extract.run` aborts only after 15 consecutive failures, so up to ~15 further calls can hit an active ban; propagate the HTTP status and abort on the first 403/429. (c) `enrich_community.run` re-reads un-enriched `records.jsonl`, enriches only the first `--max` (240 in the workflow) survivors and overwrites `records.enriched.jsonl`, so a weekly run discards community evidence on records beyond the cap (the committed snapshot has more enriched records than one run covers). The refresh must merge prior enrichment or rotate and persist batches | must (bounded run exists; state persistence, first-throttle abort and evidence-preserving merge to build) |
 | FR-2 | **Promotion queue.** `rank_starter_list.py` / `export_dashboard.py` emit a `promotion-queue.md` listing records that meet a promotion rule (≥2 corroborating mechanisms, or DISRUPT with resentment ≥ 0.4 and MobileAction volume > 5 where the channel is app-store) | must |
 | FR-3 | **Handoff.** A command (`promote.py --keyword X`) writes `ideas/<new-slug>/market-research.md` from the deep dive and the record's provenance, with `status: draft` and the Discussion left for a human to open | must |
 | FR-4 | **No auto-opened Discussions.** The tool never creates GitHub Discussions, issues or PRs itself | must |
@@ -61,7 +61,11 @@ Grouped by journey. "Must" items are the definition of done for this approval.
   on `discovery_channel = app-store` behind an explicit budget decision.
 - **Rate-limit safety:** low concurrency and pacing from the first call; a 403-storm aborts
   the batch silently. No stage may extend a ban by retrying.
-- **Security:** stage inputs/outputs are fixed paths, not argv (path-injection sink);
+- **Security:** stage inputs/outputs are fixed paths, not argv (path-injection sink), with one
+  exception: `promote.py --keyword X` (FR-3) derives `ideas/<new-slug>/market-research.md`.
+  The slug must be validated against a strict allowlist (`^[a-z0-9]+(-[a-z0-9]+)*$`, bounded
+  length), the resolved path must be contained under `ideas/`, and an existing package
+  directory must never be overwritten;
   workflow inputs pass through env, never interpolated into shell. Secrets optional; no
   secret is required for a degraded-but-valid run.
 - **Quality gates:** existing CI stays green — lint/format/typecheck, unit tests at the 80%
@@ -74,7 +78,7 @@ Grouped by journey. "Must" items are the definition of done for this approval.
 |---|---|---|
 | DemandRadar-sourced Ideas Discussions that survive `idea-triage` | 0 | ≥ 3 |
 | Of those, reaching a decision brief | 0 | ≥ 1 |
-| Records in the promotion queue with normalised corroboration | n/a (16 records are positively community-corroborated, un-normalised) | 100% of queue |
+| Community-backed records in the promotion queue with normalised corroboration (DISRUPT entries promoted on resentment and MobileAction volume alone carry no community evidence and are out of this metric) | n/a (16 records are positively community-corroborated, un-normalised) | 100% of community-backed queue entries |
 | Records past `recheck_by` still shown as live | unknown (no decay) | 0 |
 | Weekly refresh runs degraded | not tracked | tracked; < 1 in 4 |
 
