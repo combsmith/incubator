@@ -47,8 +47,10 @@ scan, unverified):
    built yet:* the scheduled workflow uploads artifacts only and persists nothing, so each
    run restarts from the committed snapshot (state persistence is a PRD FR-1 build item).
 2. **Finds, rather than validates.** Input is a vertical lexicon, not a user's idea. The
-   output is a ranked list the user did not think of (`watermark remover`, `white noise`
-   resentment, 170 resented leaders).
+   output is a ranked list the user did not think of (e.g. `watermark manager`,
+   `white noise generator` records; resentment findings on 170 leaders).
+   `watermark remover` comes from the MobileAction label and the hand-run pass, not a
+   committed record.
 3. **Structured records, not prose.** Every record carries `discovery_channel`, `gap_type`,
    supply, community and provenance fields so downstream automation (triage, dedup against
    incubator Discussions) can consume it.
