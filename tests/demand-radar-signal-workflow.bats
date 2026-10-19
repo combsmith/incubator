@@ -25,6 +25,7 @@ _step_block() {
   _job_block "$1" | awk -v step="      - name: $2" '$0==step{p=1;next} /^      - name: /{p=0} p'
 }
 
+# setup — populate REFRESH and DEPLOY variables by extracting job blocks from the workflow.
 setup() {
   REFRESH="$(_job_block refresh)"
   DEPLOY="$(_job_block deploy-pages)"
