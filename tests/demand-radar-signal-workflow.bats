@@ -63,8 +63,8 @@ setup() {
 }
 
 @test "the deploy-pages job does not check out the repo (no contents permission needed)" {
-  ! printf '%s\n' "$DEPLOY" | grep -qE 'actions/checkout'
-  ! printf '%s\n' "$DEPLOY" | grep -qE '^      contents:'
+  if printf '%s\n' "$DEPLOY" | grep -qE 'actions/checkout'; then false; fi
+  if printf '%s\n' "$DEPLOY" | grep -qE '^      contents:'; then false; fi
 }
 
 # ── environment and gating ──────────────────────────────────────────────────────
@@ -89,7 +89,7 @@ setup() {
   printf '%s\n' "$cond" | grep -qE "needs\\.refresh\\.result == 'success'"
   printf '%s\n' "$cond" | grep -qE "needs\\.refresh\\.outputs\\.clean == 'true'"
   # No always()/failure(): a failed refresh must skip the deploy, never run it.
-  ! printf '%s\n' "$cond" | grep -qE 'always\(\)|failure\(\)'
+  if printf '%s\n' "$cond" | grep -qE 'always\(\)|failure\(\)'; then false; fi
 }
 
 @test "the deploy-pages job is gated on the default branch (no deploy from a dispatched feature branch)" {
@@ -103,7 +103,7 @@ setup() {
     [ -n "$cond" ]
     printf '%s\n' "$cond" | grep -qE "steps\\.pipeline\\.outcome == 'success'"
     printf '%s\n' "$cond" | grep -qE "github\\.event\\.repository\\.default_branch"
-    ! printf '%s\n' "$cond" | grep -qE 'always\(\)'
+    if printf '%s\n' "$cond" | grep -qE 'always\(\)'; then false; fi
   done
 }
 
@@ -120,7 +120,7 @@ setup() {
 @test "upload-pages-artifact and deploy-pages are used, in the right jobs" {
   printf '%s\n' "$REFRESH" | grep -qE '^        uses: actions/upload-pages-artifact@'
   printf '%s\n' "$DEPLOY" | grep -qE '^        uses: actions/deploy-pages@'
-  ! printf '%s\n' "$REFRESH" | grep -qE 'actions/deploy-pages@'
+  if printf '%s\n' "$REFRESH" | grep -qE 'actions/deploy-pages@'; then false; fi
 }
 
 @test "every action in the workflow is pinned to a full commit SHA with a version comment" {
