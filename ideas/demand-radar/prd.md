@@ -44,12 +44,12 @@ Grouped by journey. "Must" items are the definition of done for this approval.
 
 | ID | Requirement | Priority |
 |----|-------------|----------|
-| FR-1 | The weekly refresh continues to run bounded (`--max`, `--rate`), paced, resumable, and never retries a 403/429; a degraded run is labelled as such in the artifact name | must (exists) |
+| FR-1 | The weekly refresh runs bounded (`--max`, `--rate`), paced, resumable, and never retries a 403/429; a degraded run is labelled as such in the artifact name. **Gap:** `enrich_community.run` re-reads un-enriched `records.jsonl`, enriches only the first `--max` (240 in the workflow) survivors and overwrites `records.enriched.jsonl`, so a weekly run discards community evidence on records beyond the cap (the committed snapshot has more enriched records than one run covers). The refresh must merge prior enrichment or rotate and persist batches | must (bounded run exists; evidence-preserving merge to build) |
 | FR-2 | **Promotion queue.** `rank_starter_list.py` / `export_dashboard.py` emit a `promotion-queue.md` listing records that meet a promotion rule (≥2 corroborating mechanisms, or DISRUPT with resentment ≥ 0.4 and MobileAction volume > 5 where the channel is app-store) | must |
 | FR-3 | **Handoff.** A command (`promote.py --keyword X`) writes `ideas/<new-slug>/market-research.md` from the deep dive and the record's provenance, with `status: draft` and the Discussion left for a human to open | must |
 | FR-4 | **No auto-opened Discussions.** The tool never creates GitHub Discussions, issues or PRs itself | must |
-| FR-5 | **Decay.** Each record carries a `recheck_by` derived from `gap_type` (stale / complaint-driven shorter than absent); records past `recheck_by` are flagged on the board and excluded from the promotion queue until re-scored | must |
-| FR-6 | **Community-metric normalisation.** Per-source cutoffs (Hacker News, StackExchange, Reddit, YouTube views) are expressed on one 0–1 corroboration scale, calibrated against the labelled set; the raw per-source value is retained | must |
+| FR-5 | **Decay.** Each record carries a `recheck_by` derived from `gap_type` (`stale` and `low-quality` shorter than `absent-in-store`; a resentment-driven opportunity is keyed from the existing `disruption` flag / resentment score, not a `gap_type`, because `extract.analyze` never emits `complaint-driven`); records past `recheck_by` are flagged on the board and excluded from the promotion queue until re-scored. The scheduled path gets a bounded supply/resentment recheck (oldest `recheck_by` first), since `refresh` currently skips already-scored keywords and does not run `resented_giants` | must |
+| FR-6 | **Community-metric normalisation.** Per-source cutoffs (Hacker News, StackExchange, Reddit, YouTube views) are expressed on one 0–1 corroboration scale, calibrated against a community ground-truth set; the raw per-source value is retained. The MobileAction labels cannot serve here (all 9 community-channel labels are N/A), so the PRD requires a human-labelled cross-source community set (≥ 20 keywords, built as part of this work) before cutoffs are fixed | must |
 | FR-7 | **Labels merged.** `labels/mobileaction-labels.json` values populate `demand.app_store_volume` on matching records; the label file remains the manual ground truth | should |
 | FR-8 | **Deep-dive breadth.** Deep dives exist for the top ~15 resented giants, and the gripe-category distribution across them is reported so a lexicon artefact can be detected | should |
 | FR-9 | **Reddit wired** for the gaming pilot (token plus proxy if needed), else the pilot's community corroboration is documented as degraded | should |
@@ -74,7 +74,7 @@ Grouped by journey. "Must" items are the definition of done for this approval.
 |---|---|---|
 | DemandRadar-sourced Ideas Discussions that survive `idea-triage` | 0 | ≥ 3 |
 | Of those, reaching a decision brief | 0 | ≥ 1 |
-| Records in the promotion queue with normalised corroboration | n/a (69 records have ≥2 mechanisms, un-normalised) | 100% of queue |
+| Records in the promotion queue with normalised corroboration | n/a (16 records are positively community-corroborated, un-normalised) | 100% of queue |
 | Records past `recheck_by` still shown as live | unknown (no decay) | 0 |
 | Weekly refresh runs degraded | not tracked | tracked; < 1 in 4 |
 
@@ -102,7 +102,8 @@ out of `pocs/` (decided at the graduation trigger, not now).
 1. A human will actually review the promotion queue weekly; without that, FR-2/FR-3 produce
    files nobody reads and the success metrics stay at 0.
 2. The free endpoints keep their current limits and terms through this scope.
-3. The 22-label MobileAction set is enough to calibrate a first normalisation; a larger set
-   is a should, not a must.
+3. The 34-entry MobileAction set (24 app-store, 9 community, 1 baseline) is enough to
+   calibrate app-store thresholds only; community-metric normalisation (FR-6) needs its own
+   labelled set.
 4. `idea-triage` can consume a pre-filled `market-research.md` without changes to the
    triage agent.

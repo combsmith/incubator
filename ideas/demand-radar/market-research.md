@@ -34,7 +34,7 @@ Two different jobs are being compared here, and it matters which one a competito
 | **Preuve AI** [unverified] | Evidence you can check: live research across 50+ sources per scan, each claim linked to its source. Closest to DemandRadar's "structured, cited" stance | Single-shot; one scan per idea; no monitoring over time | Unknown — not researched |
 | **WorthBuild** [unverified] | Price leader; customer-discovery included | Single-shot report | ~$4–5 per report [unverified] |
 | **Startup Ignition ToolSuite** [unverified] | Methodology-driven (1,000+ mentored ventures); structured reports with validation tasks | Single-shot; consulting-shaped | Unknown — not researched |
-| **Paid ASO tools** (MobileAction, AppTweak, Sensor Tower) | Real App Store search volume and difficulty — the only magnitude instrument for `app-store`-channel ideas | Structurally blind to `community`-discovered demand (9/9 gaming keywords N/A); paid; measures demand, not supply quality | Subscription; MobileAction used manually via Keyword Inspector for 22 labels |
+| **Paid ASO tools** (MobileAction, AppTweak, Sensor Tower) | Real App Store search volume and difficulty — the only magnitude instrument for `app-store`-channel ideas | Structurally blind to `community`-discovered demand (all 9 `community`-channel labels N/A); paid; measures demand, not supply quality | Subscription; MobileAction used manually via Keyword Inspector for 34 labels |
 | **Google Keyword Planner / Trends** | Free-ish web-search volume; valid for `web-research`-channel ideas (citation managers, army builders) | Same blindness for community-discovered apps; Google Suggest IP-bans bursts after ~6k calls | Free |
 
 ## The gap / wedge
@@ -63,14 +63,14 @@ not re-run) and the hand-labelled MobileAction set:
 | Signal | Value | What it says |
 |---|---|---|
 | Priority keywords supply-scored | 1,250 across 25 verticals | Coverage is achievable on free data with a weekly bounded batch |
-| Supply verdict mix | 745 REJECT · 180 WATCH · 163 CANDIDATE · 158 CANDIDATE* (store shows a gap, verify elsewhere) | ~60% of plausible ideas are already served — relevance scoring is what makes that number trustworthy |
-| Records with ≥2 corroborating mechanisms | 69 of 1,250 | The anti-noise rule is strict; most gaps remain single-source |
+| Supply verdict mix | 745 REJECT · 180 WATCH · 163 CANDIDATE · 158 CANDIDATE* (store shows a gap, verify elsewhere) · 4 DISRUPT (1,250 total) | ~60% of plausible ideas are already served — relevance scoring is what makes that number trustworthy |
+| Records evaluated by ≥2 mechanisms (supply + community) | 69 of 1,250: 16 corroborated (CANDIDATE), 14 weak (WATCH), 39 community-too-thin (REJECT) | Only the 16 are positive corroboration; the anti-noise rule is strict and most gaps remain single-source |
 | Vertical dynamics | 250 gap-generating · 350 saturated · 650 mixed | Gaming/tabletop manufacture gaps; student-tools and productivity are red oceans |
 | Proven-market leaders with a >4.6★ rating | ~89% | Star ratings cannot find beatable incumbents |
 | Leaders flagged by review-text resentment | 170 of 314 scanned | The usable disruption signal; e.g. Quizlet 4.78★ with 46% of low-star reviews about pricing/ads/decline; Unit Converter 4.81★ / 69%; Rocket Money 4.48★ / 62% |
 | Dashboard rows | 834 (448 DISRUPT · 137 WATCH · 130 CANDIDATE · 119 CANDIDATE*) | Two lenses, one board |
 | App-store candidates with real search volume | 1 of 12 (`watermark remover`, vol 48, difficulty 25, best incumbent 3.98★) | Demand magnitude collapses the app-store worklist; "real gap, no demand" is the common case |
-| Community keywords visible to MobileAction | 0 of 9 | Keyword tools are blind to community-discovered demand, as #44 predicted |
+| Community-channel labels visible to MobileAction | 0 of 9 | Keyword tools are blind to community-discovered demand, as #44 predicted |
 | Deep dives written | 3 (mood tracker vol 48; white noise vol 64; guitar chords vol 43) | Each names paywall as the #1 wedge — see *Risks* |
 
 Demand evidence for the *tool itself* (would anyone else want DemandRadar?) was **not
@@ -89,7 +89,7 @@ external signal, and it is second-hand.
 - **Lexicon artefact risk.** All three deep dives converge on "fix the money model". If the
   gripe lexicon over-weights pricing, every market will look like a paywall play and the
   brief loses discriminating power.
-- **Small labelled set.** 22 MobileAction labels (16 app-store, 6 community) is the entire
+- **Small labelled set.** 34 MobileAction label entries (24 app-store, 9 community, 1 baseline) are the entire
   ground truth for thresholds and for the `discovery_channel` finding.
 - **Gap decay.** The AI-flashcard wave closed a validated gap within weeks of the July pass.
   Without a decay policy the board accumulates stale opportunities.
