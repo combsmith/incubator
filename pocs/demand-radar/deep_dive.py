@@ -309,7 +309,9 @@ def _market_lines(comps):
     L.append("|---|--:|--:|---|---|--:|")
     for c in comps:
         name = (c["app"] or "—").replace("|", "\\|")
-        L.append(f"| {name} | {c['rating']} | {c['count']:,} | {c['price'] or '—'} | {c['updated'] or '—'} | {_resent_cell(c)} |")
+        L.append(
+            f"| {name} | {c['rating']} | {c['count']:,} | {c['price'] or '—'} | {c['updated'] or '—'} | {_resent_cell(c)} |"
+        )
     cutoff = time.strftime("%Y-%m", time.gmtime(time.time() - 365 * 86400))
     stale = [c["app"] for c in comps if c["updated"] and c["updated"] < cutoff]
     if stale:
