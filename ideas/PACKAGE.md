@@ -52,8 +52,15 @@ green.
 3. **Gate** — the PR stays red until the package is complete; the checklist comment
    shows what's missing.
 4. **Approve = go** — a green gate **plus** a code-owner approval (the `pr-quality`
-   ruleset) authorizes work to begin. Merge records the decision; the idea then
-   graduates to its own product repo.
+   ruleset) authorizes work to begin. Merge records the decision. The default outcome is
+   graduation to the idea's own product repo. **Exception: internal tooling** — when the
+   brief recommends approval as an internal feeder/infra tool *without* external users or
+   a standalone product repo, the brief's "Lifecycle note" or "Recommendation" section
+   must explicitly scope what "approved" authorises (e.g., hardening a spike, wiring a
+   handoff) and may defer product-repo graduation to a downstream trigger (e.g., ≥N
+   downstream ideas graduate, or external user demand appears). Approval in this case
+   authorises the scoped work and continues in the spike's home (`pocs/`, a private
+   tooling repo, etc.), not product-repo graduation.
 
 ## Running the gate locally
 
