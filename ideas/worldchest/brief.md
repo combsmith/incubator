@@ -103,7 +103,7 @@ cost about a week together and need no product code. Run them, then return for `
 - **Slug:** the package was generated under `block-vault` and renamed to `worldchest`
   on this PR (2026-10-20) to match the brand decision in the thread; the product repo is
   `combsmith/worldchest`.
-- **No `brainstorm.md`:** the brief is built from the Discussion only; the gate-required brainstorm is still missing.
+- **Brainstorm provenance:** `brainstorm.md` is reconstructed from the Discussion only; no separate facilitated session was held.
 - **EULA/Usage Guidelines:** is a *paid* backup service for player worlds allowed? (The EULA page did not load during research.)
 - **COPPA / GDPR-K:** what parent-consent and data-minimisation architecture is needed?
   Is storing world files alone "personal information" for children under 13?

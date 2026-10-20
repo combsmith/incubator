@@ -39,4 +39,4 @@ flowchart TD
 - **Assumption tests** match brief §6. A4 (willingness to pay) comes first because it
   kills the business if it fails. A1 comes next because it is the thread's own "biggest
   conversion risk".
-- No `brainstorm.md` exists for this idea; the tree is built from the Discussion only.
+- The tree is built from the Discussion only; `brainstorm.md` is reconstructed from the same thread.
