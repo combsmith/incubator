@@ -92,15 +92,18 @@ _with_value() {
   # Header rule: keep the schedule after the idea-triage run (13:30 UTC Monday)
   # and off minute 0 (the GitHub top-of-hour pile-up). Both are allowed edits —
   # this pins only the constraints, not the exact minute.
-  local cron minute hour
+  local cron minute hour dow
   cron="$(_on_block | awk '/^    - cron:/ {sub(/.*cron:[[:space:]]*/, ""); gsub(/["'"'"']/, ""); sub(/[[:space:]]+#.*$/, ""); print; exit}')"
   [ -n "$cron" ]
   minute="$(echo "$cron" | awk '{print $1}')"
   hour="$(echo "$cron" | awk '{print $2}')"
+  dow="$(echo "$cron" | awk '{print $5}')"
   [[ "$minute" =~ ^[0-9]+$ ]]
   [[ "$hour" =~ ^[0-9]+$ ]]
   [ "$minute" -ne 0 ]
   [ "$hour" -ge 14 ]
+  # Monday only (the idea-triage run is Monday 13:30 UTC); 1 or MON.
+  [[ "$dow" =~ ^(1|MON)$ ]]
 }
 
 @test "workflow_dispatch exposes the optional discussion input" {
@@ -175,7 +178,7 @@ _with_value() {
   # A second job (a local redispatch bridge, a lint step, …) is logic that belongs
   # in the reusable; the stub stays a single thin call.
   local jobs
-  jobs="$(awk '/^jobs:$/ {p=1; next} p && /^  [a-z][a-z-]*:$/ {print}' "$DB_YML")"
+  jobs="$(awk '/^jobs:$/ {p=1; next} p && /^  [A-Za-z_][A-Za-z0-9_-]*:$/ {print}' "$DB_YML")"
   [ "$jobs" = "  decision-brief:" ]
   run awk '/^  decision-brief:$/ {p=1; next} p && /^  [^ ]/ {p=0} p && /^    (runs-on|steps):/' "$DB_YML"
   [ "$status" -eq 0 ]
