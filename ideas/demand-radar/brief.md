@@ -150,7 +150,8 @@ factory the tool feeds, not the tool.
 
 **What "approved" authorises** (the PRD in this package scopes exactly this, nothing more):
 1. Wire the **handoff**: a reviewed queue, not auto-opened Discussions — a human promotes a
-   record and the deep dive lands as `ideas/<new-slug>/market-research.md`.
+   record and the generated research lands as `ideas/<new-slug>/market-research.md` (using the
+   deep dive when one exists, otherwise synthesised from the record's provenance alone).
 2. **Normalise** community metrics against a new community ground-truth set; implement `recheck_by` decay.
 3. **Promote the first three** records by hand to measure whether triage keeps them.
 
@@ -199,5 +200,8 @@ that decision; it does not make it.
 - **Where the tool lives:** `pocs/` is documented as disposable, yet the weekly workflow
   lives in this repo's `.github/`. Acceptable while the handoff target is this repo's own
   Discussions; revisit at the graduation trigger.
-- **Dashboard URL:** the weekly artifact has no stable public URL (Discussion #165 proposes
-  GitHub Pages). Separate idea; not blocking.
+- **Dashboard URL:** already shipped (Discussion #165, #181): `demand-radar-signal.yml` stages
+  `dashboard.html` under `/demand-radar/` and its `deploy-pages` job publishes it on clean
+  default-branch runs. The only open step is the one-time maintainer setting (Pages enabled
+  with "GitHub Actions" as the source); until then the deploy job fails and the build artifact
+  is unaffected. Not blocking.

@@ -31,7 +31,7 @@ flowchart TD
     OPP2 --> S3["✅ Disrupt lens: mine 1–3★ reviews of proven-market leaders for paywall / ads / got-worse resentment"]
     OPP2 --> S4["⚠️ Deep-dive brief per market: incumbents, gripes, loves, feature wishes, wedge"]
     OPP3 --> S5["⚠️ discovery_channel axis: route magnitude to the valid instrument; size community gaps from community metrics"]
-    OPP4 --> S6["⬜ Handoff: reviewed queue → human promotes → deep dive lands as the new idea's market-research.md"]
+    OPP4 --> S6["⬜ Handoff: reviewed queue → human promotes → research lands as the new idea's market-research.md (deep dive if one exists, else record-only)"]
     OPP4 --> S7["⬜ Decay: recheck_by per gap_type; expire stale records off the board"]
 
     S1 --> A1["Test: does relevance change verdicts? — PROVEN: without it everything reads 'served'"]
