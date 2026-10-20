@@ -5,7 +5,7 @@ status: final
 
 # Decision Brief — WorldChest (working name BlockVault): backup, sync, restore & versioning for Minecraft Bedrock worlds
 
-- **Slug:** `block-vault`
+- **Slug:** `worldchest`
 - **Source Discussion:** https://github.com/combsmith/incubator/discussions/5
 - **Author / owner:** don-petry (idea); Mary 📊 (Analyst, brief)
 - **Status:** `ready-for-decision`
@@ -100,9 +100,9 @@ cost about a week together and need no product code. Run them, then return for `
   This brief only recommends.
 
 ## 8. Open questions
-- **Slug mismatch:** the thread (2026-10-19) set the brand to **WorldChest** and the
-  `ideas/` slug to `worldchest`, but this package was generated under `block-vault`.
-  Should it be renamed before approval?
+- **Slug:** the package was generated under `block-vault` and renamed to `worldchest`
+  on this PR (2026-10-20) to match the brand decision in the thread; the product repo is
+  `combsmith/worldchest`.
 - **No `brainstorm.md`:** the brief is built from the Discussion only; the gate-required brainstorm is still missing.
 - **EULA/Usage Guidelines:** is a *paid* backup service for player worlds allowed? (The EULA page did not load during research.)
 - **COPPA / GDPR-K:** what parent-consent and data-minimisation architecture is needed?

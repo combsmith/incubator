@@ -5,7 +5,7 @@ status: final
 
 # Market Research — WorldChest (working name BlockVault): backup, sync, restore & versioning for Minecraft Bedrock worlds
 
-- **Slug:** `block-vault`
+- **Slug:** `worldchest`
 - **Last updated:** 2026-10-20
 
 Scope: Minecraft **Bedrock** worlds on phones/tablets (Android first, iOS second), for
