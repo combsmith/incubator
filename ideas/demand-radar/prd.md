@@ -62,7 +62,7 @@ Grouped by journey. "Must" items are the definition of done for this approval.
 - **Rate-limit safety:** low concurrency and pacing from the first call; a 403-storm aborts
   the batch silently. No stage may extend a ban by retrying.
 - **Security:** stage inputs/outputs are fixed paths, not argv (path-injection sink), with one
-  exception: `promote.py --keyword X` (FR-3) derives `ideas/<new-slug>/market-research.md`.
+  exception: `promote.py --target T` (FR-3) derives `ideas/<new-slug>/market-research.md`.
   The slug must be validated against a strict allowlist (`^[a-z0-9]+(-[a-z0-9]+)*$`, bounded
   length), the resolved path must be contained under `ideas/`, and an existing package
   directory must never be overwritten;
