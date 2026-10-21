@@ -199,7 +199,7 @@ def main():
     if a.preset == "weekly":
         info.update(
             week=weekly.iso_week(today),
-            scored=max(0, weekly.count_records() - before["records"]),
+            scored=max(0, weekly.count_records() - before.get("records", 0)),
             youtube_key=bool(os.environ.get("YOUTUBE_API_KEY")),
         )
         stage(
