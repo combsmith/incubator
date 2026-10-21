@@ -83,13 +83,18 @@ def create_thread(token, repo):
       createDiscussion(input: {repositoryId: $repositoryId, categoryId: $categoryId, title: $title, body: $body}) {
         discussion { id url } } }"""
     d = _gql(token, m, {"repositoryId": r["id"], "categoryId": cat["id"], "title": THREAD_TITLE, "body": THREAD_BODY})
-    print(f"created the {THREAD_TITLE!r} thread: {d['createDiscussion']['discussion']['url']}")
-    return d["createDiscussion"]["discussion"]
+    discussion = d.get("createDiscussion", {}).get("discussion") or {}
+    url = discussion.get("url")
+    if not url:
+        raise PostError("failed to create the discussion thread")
+    print(f"created the {THREAD_TITLE!r} thread: {url}")
+    return discussion
 
 
 def already_posted(token, discussion_id, marker):
     q = """query($id: ID!) { node(id: $id) { ... on Discussion { comments(last: 30) { nodes { body } } } } }"""
-    nodes = _gql(token, q, {"id": discussion_id})["node"]["comments"]["nodes"]
+    data = _gql(token, q, {"id": discussion_id})
+    nodes = data.get("node", {}).get("comments", {}).get("nodes") or []
     return any(marker in (c.get("body") or "") for c in nodes)
 
 
@@ -108,7 +113,11 @@ def post(body, today, repo, token):
     m = """mutation($id: ID!, $body: String!) {
       addDiscussionComment(input: {discussionId: $id, body: $body}) { comment { url } } }"""
     text = f"{marker}\n{body.strip()}{FOOTER}"
-    return _gql(token, m, {"id": thread["id"], "body": text})["addDiscussionComment"]["comment"]["url"]
+    data = _gql(token, m, {"id": thread["id"], "body": text})
+    url = data.get("addDiscussionComment", {}).get("comment", {}).get("url")
+    if not url:
+        raise PostError("failed to add the signals comment")
+    return url
 
 
 def main():

@@ -149,7 +149,7 @@ def main(today=None):
             continue
         gap = r.get("gap", {}).get("gap_type", "")
         comp = r.get("supply", {}).get("competition_intensity", "")
-        ch = r["discovery_channel"]
+        ch = r.get("discovery_channel", "")
         cm = (r.get("demand") or {}).get("community_metric") or {}
         m = cm.get("mentions")
         m = m if isinstance(m, int) else None
@@ -176,7 +176,7 @@ def main(today=None):
                 score -= 3
                 magnote = "no-store-demand"
         ds_star = math.log10(ms) * max(0.0, 4.6 - lr) if star_dis and ms > 0 and lr else 0.0
-        ds_res = math.log10(ms) * rg["resent_frac"] if res_flag and ms > 0 else 0.0
+        ds_res = math.log10(ms) * rg.get("resent_frac", 0) if res_flag and ms > 0 else 0.0
         dscore = round(max(ds_star, ds_res), 2)
         verdict = "DISRUPT" if dis else v
         sup = r.get("supply") or {}

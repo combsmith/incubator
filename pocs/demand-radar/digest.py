@@ -76,7 +76,7 @@ def build(today, rows, prev_rows, info, resented_before, resented_after, dives, 
         ]
         for i, r in enumerate(new, 1):
             L.append(
-                f"| {i} | {_cell(r['kw'])} | {_cell(r.get('vert'))} | {_cell(r.get('verdict'))} | "
+                f"| {i} | {_cell(r.get('kw', ''))} | {_cell(r.get('vert'))} | {_cell(r.get('verdict'))} | "
                 f"{r.get('score', 0)} | {r.get('dScore') or 0} | {_cell(r.get('seen'))} | {_brief_link(r.get('dd'))} |"
             )
     else:
@@ -99,7 +99,7 @@ def build(today, rows, prev_rows, info, resented_before, resented_after, dives, 
 
     L += [f"## Deep-dives written ({len(dives)})", ""]
     for d in dives:
-        L.append(f"- [{_cell(d['kw'])}]({d['path']}) — {_cell(d.get('vert'))}")
+        L.append(f"- [{_cell(d.get('kw', ''))}]({d.get('path', '')}) — {_cell(d.get('vert'))}")
     L += [NONE] if not dives else []
     L.append("")
 
