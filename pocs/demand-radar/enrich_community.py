@@ -251,12 +251,12 @@ def fetch_for(record, forced, budget_left, rtoken, dead):
 
 def recompute(record, cm):
     if record.get("discovery_channel") != "community":
-        return record["verdict_heuristic"], None
-    v = record["verdict_heuristic"]
+        return record.get("verdict_heuristic"), None
+    v = record.get("verdict_heuristic", "")
     if not v.startswith("CANDIDATE") or cm.get("mentions") is None:
         return v, None
     corr, thin = THRESHOLDS.get(cm.get("source", ""), (300, 50))
-    m = cm["mentions"]
+    m = cm.get("mentions")
     if m >= corr:
         return "CANDIDATE", "community-corroborated"
     if m < thin:
