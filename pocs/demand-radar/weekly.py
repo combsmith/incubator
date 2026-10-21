@@ -108,7 +108,7 @@ def select_slice(
     keywords = _read_jsonl(keywords_path)
     done = {(r.get("industry"), r.get("canonical_query")) for r in _read_jsonl(records_path)}
     has_broad = {
-        (r.get("vertical"), r["keyword"]) for r in _read_jsonl(broad_path) if r.get("broad_interest") is not None
+        (r.get("vertical"), r.get("keyword")) for r in _read_jsonl(broad_path) if r.get("broad_interest") is not None
     }
     pending = [k for k in keywords if (k["vertical"], k["keyword"]) not in done]
 
