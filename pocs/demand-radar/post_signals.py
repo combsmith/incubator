@@ -57,7 +57,7 @@ def _gql(token, query, variables):
         out = json.loads(resp.read().decode("utf-8"))
     if out.get("errors"):
         raise PostError("GraphQL: " + "; ".join(e.get("message", "?") for e in out["errors"]))
-    return out["data"]
+    return out.get("data", {})
 
 
 def find_thread(token, repo):
@@ -75,14 +75,15 @@ def create_thread(token, repo):
     owner, name = repo.split("/", 1)
     q = """query($owner: String!, $name: String!) { repository(owner: $owner, name: $name) {
       id discussionCategories(first: 50) { nodes { id name } } } }"""
-    r = _gql(token, q, {"owner": owner, "name": name})["repository"]
-    cat = next((c for c in r["discussionCategories"]["nodes"] if c["name"] == CATEGORY), None)
+    data = _gql(token, q, {"owner": owner, "name": name})
+    r = data.get("repository") or {}
+    cat = next((c for c in r.get("discussionCategories", {}).get("nodes", []) if c.get("name") == CATEGORY), None)
     if cat is None:
         raise PostError(f"no {CATEGORY!r} discussion category in {repo}")
     m = """mutation($repositoryId: ID!, $categoryId: ID!, $title: String!, $body: String!) {
       createDiscussion(input: {repositoryId: $repositoryId, categoryId: $categoryId, title: $title, body: $body}) {
         discussion { id url } } }"""
-    d = _gql(token, m, {"repositoryId": r["id"], "categoryId": cat["id"], "title": THREAD_TITLE, "body": THREAD_BODY})
+    d = _gql(token, m, {"repositoryId": r.get("id"), "categoryId": cat.get("id"), "title": THREAD_TITLE, "body": THREAD_BODY})
     discussion = d.get("createDiscussion", {}).get("discussion") or {}
     url = discussion.get("url")
     if not url:
