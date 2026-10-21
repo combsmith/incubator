@@ -521,13 +521,14 @@ const tipEl = $("#tip"), ctrlIn = $(".ctrl-in"), TIP_SEL = "[aria-describedby]";
 const tipText = id => { const t = id && document.getElementById(id); return t ? t.textContent.trim() : ""; };
 function showTip(el){
   const text = tipText(el.getAttribute("aria-describedby")); if(!text){ hideTip(); return; }
-  tipEl.textContent = text; tipEl.style.left = tipEl.style.top = "0px"; tipEl.hidden = false;  // measure unconstrained
+  tipEl.textContent = text; tipEl.style.left = tipEl.style.top = "0px"; tipEl.hidden = false; tipOwner = el;  // measure unconstrained
   const r = el.getBoundingClientRect(), w = tipEl.offsetWidth, h = tipEl.offsetHeight;
   const left = Math.min(Math.max(8, r.left + r.width/2 - w/2), window.innerWidth - w - 8);
   const top = r.bottom + 8 + h > window.innerHeight ? r.top - h - 8 : r.bottom + 8;
   tipEl.style.left = Math.max(8, left)+"px"; tipEl.style.top = Math.max(8, top)+"px";
 }
-function hideTip(){ tipEl.hidden = true; }
+let tipOwner = null;
+function hideTip(){ tipEl.hidden = true; tipOwner = null; }
 function syncSortTip(){
   const sel = $("#sort"), opt = sel.options[sel.selectedIndex];
   sel.setAttribute("aria-describedby", opt.dataset.tip);
@@ -540,15 +541,26 @@ ctrlIn.addEventListener("mouseover", e=>{
   if(Date.now()-lastTouch < 800) return;  // ignore the mouse events a tap emulates
   const el = e.target.closest(TIP_SEL); if(el) showTip(el);
 });
-ctrlIn.addEventListener("mouseout", e=>{ const el = e.target.closest(TIP_SEL); if(el && !el.contains(e.relatedTarget)) hideTip(); });
+// the tooltip belongs to one control (tipOwner); it only goes away when that control is neither hovered nor keyboard-focused
+const isHovered = el => { try{ return el.matches(":hover"); }catch(e){ return false; } };
+const isFocused = el => document.activeElement===el && isFocusVisible(el);
+ctrlIn.addEventListener("mouseout", e=>{
+  const el = e.target.closest(TIP_SEL);
+  if(el && !el.contains(e.relatedTarget) && el===tipOwner && !isFocused(el)) hideTip();
+});
 ctrlIn.addEventListener("focusin", e=>{ const el = e.target.closest(TIP_SEL); if(el && isFocusVisible(el)) showTip(el); });
-ctrlIn.addEventListener("focusout", hideTip);
+ctrlIn.addEventListener("focusout", e=>{
+  const el = e.target.closest(TIP_SEL);
+  if(el && el===tipOwner && !isHovered(el)) hideTip();
+});
 ctrlIn.addEventListener("touchstart", e=>{
   lastTouch = Date.now(); longPressed = false; hideTip(); clearTimeout(pressT);
   const el = e.target.closest(TIP_SEL);
   if(el) pressT = setTimeout(()=>{ longPressed = true; showTip(el); }, 500);
 }, {passive:true});
-["touchend","touchmove","touchcancel"].forEach(t=>ctrlIn.addEventListener(t, ()=>{ lastTouch = Date.now(); clearTimeout(pressT); }, {passive:true}));
+// touchend keeps a completed long-press tooltip readable; a moved or canceled press dismisses it and resets the press state
+ctrlIn.addEventListener("touchend", ()=>{ lastTouch = Date.now(); clearTimeout(pressT); }, {passive:true});
+["touchmove","touchcancel"].forEach(t=>ctrlIn.addEventListener(t, ()=>{ lastTouch = Date.now(); clearTimeout(pressT); longPressed = false; hideTip(); }, {passive:true}));
 // a long-press only explains the control: swallow the click (and context menu) it would otherwise trigger
 ctrlIn.addEventListener("click", e=>{ if(longPressed){ longPressed = false; e.preventDefault(); e.stopPropagation(); } }, true);
 ctrlIn.addEventListener("contextmenu", e=>{ if(longPressed) e.preventDefault(); });
