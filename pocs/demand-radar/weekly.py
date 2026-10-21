@@ -151,7 +151,7 @@ def pick_priority(slice_path=SLICE_PATH, broad_path=BROAD_PATH, out_path=WEEKLY_
     keys = {(k["vertical"], k["keyword"]) for k in _read_jsonl(slice_path)}
     rows = {}
     for r in _read_jsonl(broad_path):  # later rows win: a retried failure replaces the failed row
-        key = (r.get("vertical"), r["keyword"])
+        key = (r.get("vertical"), r.get("keyword"))
         if key in keys and r.get("broad_interest") is not None:
             rows[key] = r
     seeds = [r for r in rows.values() if r.get("seed")]
