@@ -110,17 +110,17 @@ def select_slice(
     has_broad = {
         (r.get("vertical"), r.get("keyword")) for r in _read_jsonl(broad_path) if r.get("broad_interest") is not None
     }
-    pending = [k for k in keywords if (k["vertical"], k["keyword"]) not in done]
+    pending = [k for k in keywords if (k.get("vertical"), k.get("keyword")) not in done]
 
-    verticals = list(dict.fromkeys(k["vertical"] for k in keywords))
-    with_pending = {k["vertical"] for k in pending if not k.get("seed")}
+    verticals = list(dict.fromkeys(k.get("vertical") for k in keywords))
+    with_pending = {k.get("vertical") for k in pending if not k.get("seed")}
     chosen = [v for v in vertical_order(verticals, today) if v in with_pending][:per_week]
     seeds = [k for k in pending if k.get("seed")]
-    lexicon = [k for k in pending if not k.get("seed") and k["vertical"] in chosen]
+    lexicon = [k for k in pending if not k.get("seed") and k.get("vertical") in chosen]
 
     picked, calls = [], 0
     for k in seeds + lexicon:
-        if (k["vertical"], k["keyword"]) not in has_broad:
+        if (k.get("vertical"), k.get("keyword")) not in has_broad:
             if calls >= broad_cap:
                 continue  # stays pending: a later week's slice picks it up
             calls += 1
@@ -148,7 +148,7 @@ def select_slice(
 def pick_priority(slice_path=SLICE_PATH, broad_path=BROAD_PATH, out_path=WEEKLY_PATH, per_vertical=50):
     """The supply pass's keyword set for this week: every broad-scored seed in the slice plus
     the top `per_vertical` lexicon keywords of each rotated vertical by broad demand."""
-    keys = {(k["vertical"], k["keyword"]) for k in _read_jsonl(slice_path)}
+    keys = {(k.get("vertical"), k.get("keyword")) for k in _read_jsonl(slice_path)}
     rows = {}
     for r in _read_jsonl(broad_path):  # later rows win: a retried failure replaces the failed row
         key = (r.get("vertical"), r.get("keyword"))
@@ -163,7 +163,7 @@ def pick_priority(slice_path=SLICE_PATH, broad_path=BROAD_PATH, out_path=WEEKLY_
 
 def priority_keys(path=WEEKLY_PATH):
     """(vertical, keyword) of this week's supply set — the enrich stage's `only` filter."""
-    return {(r["vertical"], r["keyword"]) for r in _read_jsonl(path)}
+    return {(r.get("vertical"), r.get("keyword")) for r in _read_jsonl(path)}
 
 
 def deep_dives(n=3, rate=18, data_path=DATA_PATH, written=None):
