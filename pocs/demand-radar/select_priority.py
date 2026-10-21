@@ -74,7 +74,9 @@ def run(inp=IN_PATH, out=OUT_PATH, per_vertical=50):
     top = sorted(picked, key=lambda r: (r.get("broad_interest", 0), r.get("app_intent", 0)), reverse=True)[:20]
     print("Top 20 by broad demand:")
     for r in top:
-        print(f"  bi={r.get('broad_interest')} app={r.get('app_intent')}  {r.get('keyword', ''):<26} [{r.get('vertical', '')}]")
+        print(
+            f"  bi={r.get('broad_interest')} app={r.get('app_intent')}  {r.get('keyword', ''):<26} [{r.get('vertical', '')}]"
+        )
     return len(picked)
 
 
