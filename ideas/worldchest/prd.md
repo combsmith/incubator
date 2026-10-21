@@ -3,7 +3,7 @@ artifact: prd
 status: final
 ---
 
-# PRD — WorldChest (working name BlockVault): evidence programme for backup, sync, restore & versioning of Minecraft Bedrock worlds
+# PRD — WorldChest (formerly BlockVault): evidence programme for backup, sync, restore & versioning of Minecraft Bedrock worlds
 
 - **Slug:** `worldchest`
 - **Source Discussion:** https://github.com/combsmith/incubator/discussions/5
@@ -16,10 +16,11 @@ status: final
 - **Last updated:** 2026-10-21
 
 > **Scope note.** `brief.md` §7 recommends **park: buy evidence first**. Under that
-> recommendation, `idea:approved` on Discussion #5 authorises the evidence programme in
-> `brief.md` §6 (tests 1–4, plus the time-boxed watch in test 5) and the return of its results
-> to the Discussion. It does **not** authorise product code, a backend, a store listing or a
-> paid plan. This PRD therefore specifies the evidence programme as the deliverable. The backup
+> recommendation, the Decider authorises the evidence programme in `brief.md` §6 (tests 1–4,
+> plus the time-boxed watch in test 5) by a dated comment on Discussion #5 ("programme
+> authorised"); that comment is a separate state from `idea:approved`, which is reserved for
+> the final product go/no-go decision after the results (FR-8). Authorisation does **not**
+> authorise product code, a backend, a store listing or a paid plan. This PRD therefore specifies the evidence programme as the deliverable. The backup
 > product the tests are about appears only as the hypothesis under test (§4.0) and in the
 > non-goals (§6). A product PRD is a later `update` of this document, written after the Decider
 > has read the results.
@@ -168,10 +169,16 @@ and Waitlist sign-ups.
 - Before the page receives its first visitor, the Conversion threshold is written into
   `brief.md` §6 row 1 (or the Discussion) with a date.
 - The page names the product WorldChest, follows the Naming rule, and shows the Disclaimer.
-- The page takes no payment and stores nothing but an email address and a timestamp per
-  Waitlist sign-up `[ASSUMPTION: an adult's email with no child data is the least the test
-  can collect; counsel has not reviewed this]`.
-- "Visitor" means a unique session as counted by the page's analytics; the test window
+- The page takes no payment. The sign-up form requires a checked attestation "I am an adult
+  parent or guardian" and states that under-18s must not submit. It stores nothing but an
+  email address, a timestamp and that attestation per Waitlist sign-up. Any sign-up the
+  Decider learns was submitted by a child is deleted on discovery, and any sign-up is deleted
+  on request `[ASSUMPTION: a self-attestation is the least the test can enforce without
+  collecting more data; counsel has not reviewed this]`.
+- Visitor analytics are limited to a cookieless, aggregate unique-session count (no persistent
+  identifier, no IP address stored, no cross-site tracking), retained only until the decision
+  comment (FR-8) and then deleted. This is the only data besides the sign-up fields above.
+- "Visitor" means a unique session as counted by that analytics; the test window
   (start and end date) is written down with the Conversion threshold before launch
   `[ASSUMPTION: the brief sets neither; both are the Decider's to fix before the first
   visitor]`.
@@ -216,7 +223,8 @@ time for each.
   without help `[ASSUMPTION: Shizuku's status screen is the only observable end point
   available before any product code; the thread describes no onboarding steps]`.
 - If the script cannot avoid a computer step (§9 question 4), the test still runs; the
-  computer step is recorded, and SM-3 is reported as "completed with a computer step".
+  computer step is recorded and the run is reported separately as "completed with a
+  computer step". It does not count toward SM-3.
 - Three Non-technical parents each attempt it unaided ("unaided" = no words or touches
   from the observer after the phone and script are handed over); for each, completion
   (yes/no), elapsed time and the step where they stopped are recorded.
@@ -311,15 +319,18 @@ Discussion #5, and record the decision.
 - A comment on Discussion #5 lists the five results against Graduation criteria (a) and (b)
   in `brief.md` §7 and the "say no" conditions. Criterion (c), a non-technical user
   completing an end-to-end restore on a fresh device with zero crashes, needs product code
-  and is reported as "not testable in this programme" `[NOTE FOR PM]` the Decider must
-  either accept (a) and (b) alone or authorise a restore prototype as a separate step.
-- The decision is recorded as `idea:approved` on the Discussion, or as a comment saying why
-  not, with the date.
+  and is reported as "not testable in this programme". Meeting (a) and (b) is not product
+  graduation: unconditional `idea:approved` requires criterion (c). `[NOTE FOR PM]` The
+  Decider must either authorise a restore prototype as a separate step to test (c), or
+  record any `idea:approved` as conditional on (c), stating that condition in the comment.
+- The decision is recorded as `idea:approved` (conditional or not, as above) on the
+  Discussion, or as a comment saying why not, with the date.
 
 ## 5. Constraints and Guardrails
 
 - **Privacy.** No child is a participant and no child data is collected. The Fake door stores
-  an adult email and a timestamp only. Interview notes name no child. World files are not
+  an adult email, a timestamp and an adult attestation, plus the minimal aggregate analytics
+  defined in FR-1, and nothing else. Interview notes name no child. World files are not
   uploaded anywhere by this programme.
 - **Safety of participants' devices.** The Hallway test touches a parent's own phone;
   nothing is backed up, deleted or restored during it, and the phone is returned to its
@@ -377,11 +388,12 @@ rather than inventing one.
   Target: at or above the Conversion threshold the Decider sets before launch (`brief.md`
   §7a; the value is open, §9). Validates FR-1.
 - **SM-3 Unaided setup completion** — Non-technical parents who reach the FR-3 end state
-  (Shizuku reporting its service running) alone, out of three; reported "with a computer
-  step" if one was needed. Target: at least 2 of 3 (`brief.md` §7b). Validates FR-3.
+  (Shizuku reporting its service running) without a computer step, out of three;
+  computer-assisted completions are reported separately and do not count. Target: at least 2 of 3 (`brief.md` §7b). Validates FR-3.
 - **SM-4 Legal verdict recorded** — a dated permitted / prohibited / unclear note exists and
-  the Mojang question has been sent. Target: both done; "prohibited" is a "no" condition
-  (`brief.md` §7). Validates FR-5.
+  the Mojang question has been sent. Target: both done and the verdict is "permitted".
+  "Prohibited" is a "no" condition (`brief.md` §7); "unclear" is non-passing and parks the
+  idea unless written clearance is obtained before final approval. Validates FR-5.
 
 **Secondary**
 - **SM-5 Share-sheet round trip** — devices (of two) on which export and re-import both
@@ -422,8 +434,8 @@ rather than inventing one.
 
 - §3 Glossary — a Non-technical parent is one who has never enabled Developer options or
   used ADB; the thread and brief do not define the term.
-- §4.1 FR-1 — the Fake door collects only an adult email and a timestamp, with no counsel
-  review.
+- §4.1 FR-1 — a self-attested adult checkbox is sufficient to keep child data out of the
+  Fake door, with no counsel review.
 - §4.1 FR-1 — Fake-door traffic comes from the owner's own channels; no ad budget.
 - §4.1 FR-2 — interview recruitment comes from the owner's own network.
 - §4.2 FR-3 — Shizuku's wireless-debugging route lets a parent complete setup without a

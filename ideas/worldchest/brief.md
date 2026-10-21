@@ -3,7 +3,7 @@ artifact: brief
 status: final
 ---
 
-# Decision Brief — WorldChest (working name BlockVault): backup, sync, restore & versioning for Minecraft Bedrock worlds
+# Decision Brief — WorldChest (formerly BlockVault): backup, sync, restore & versioning for Minecraft Bedrock worlds
 
 - **Slug:** `worldchest`
 - **Source Discussion:** https://github.com/combsmith/incubator/discussions/5

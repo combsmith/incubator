@@ -3,7 +3,7 @@ artifact: brainstorm
 status: final
 ---
 
-# Brainstorm — WorldChest (working name BlockVault): backup, sync, restore & versioning for Minecraft Bedrock worlds
+# Brainstorm — WorldChest (formerly BlockVault): backup, sync, restore & versioning for Minecraft Bedrock worlds
 
 - **Slug:** `worldchest`
 - **Source Discussion:** https://github.com/combsmith/incubator/discussions/5
@@ -65,7 +65,7 @@ tagged.
 
 | Idea | Promise | Why kept / dropped |
 |------|---------|--------------------|
-| **Zero-setup `.mcworld` share-sheet export** (body: "baseline (everyone)") | Works with no special storage access, on any device | **Kept as the baseline tier.** The body lists its durability under tightening OS storage rules as an open question. It exports one world at a time (`market-research.md`, "In-game world export") |
+| **Zero-setup `.mcworld` share-sheet export** (body: "baseline (everyone)") | Works with no special storage access (hypothesis: "on any device" is unvalidated; Android 15 and iOS round-tripping is still an open test, `brief.md` §6 row 3) | **Kept as the baseline tier.** The body lists its durability under tightening OS storage rules as an open question. It exports one world at a time (`market-research.md`, "In-game world export") |
 | **Shizuku (ADB, no root) "power mode"** for automatic full-library backup (body) | Whole library, automatic, no technician on hand | **Kept as the core tier.** The body names parent-proof onboarding as "the biggest conversion risk". The POC comment confirms the Android 15 owner-only storage behaviour and a working write path around it |
 | **Desktop companion** for big migrations (body) | "For big migrations" (body); the 232-world case *(inferred)* | **Kept as a tier for large moves.** It productises the ADB path the author actually used *(inferred)* |
 | **Official Mojang API** (body: "the long-term holy grail") | Sanctioned, cross-platform access with no storage workaround | **Kept as horizon only.** The thread places it long-term; nothing this team can build or test today *(inferred)* |

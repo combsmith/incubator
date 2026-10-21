@@ -3,7 +3,7 @@ artifact: market-research
 status: final
 ---
 
-# Market Research — WorldChest (working name BlockVault): backup, sync, restore & versioning for Minecraft Bedrock worlds
+# Market Research — WorldChest (formerly BlockVault): backup, sync, restore & versioning for Minecraft Bedrock worlds
 
 - **Slug:** `worldchest`
 - **Last updated:** 2026-10-20
@@ -11,7 +11,7 @@ status: final
 Scope: Minecraft **Bedrock** worlds on phones/tablets (Android first, iOS second), for
 young players and the parents who would pay. Research was desk-only (web search and
 fetch on 2026-10-20). No user interviews, surveys or store analytics were available.
-Brand per the thread (2026-10-19): **WorldChest**; "BlockVault" is the working name in the slug.
+Brand per the thread (2026-10-19): **WorldChest**; "BlockVault" was the prior working name (the slug was renamed to `worldchest`).
 
 ## How it's solved today
 
