@@ -349,7 +349,7 @@ def run(keyword, top=8, pages=3, min_ratings=2000, rate=0):
     for c in comps:
         rv = c.get("reviews")
         if rv:
-            res = f"{int(rv['resent_frac'] * 100)}%"
+            res = f"{int(rv.get('resent_frac', 0) * 100)}%"
         elif c.get("reviews_unavailable"):
             res = "n/a"
         else:
