@@ -88,7 +88,7 @@ def disruption(rec):
     """(market_size, leader_rating, leader_app, is_target). Uses detector fields if present,
     else derives from stored top-5 via name-relevance (lossy for pre-detector records)."""
     sup = rec.get("supply")
-    q = rec["canonical_query"]
+    q = rec.get("canonical_query", "")
     if sup is None:
         return 0, None, None, False
     if sup.get("market_size") is not None:  # scored with the new detector
@@ -165,7 +165,7 @@ def main(today=None):
                 gap_w = 0.5
         score = gap_w + COMP_W.get(comp, 0) + cbonus(m, cm.get("source")) + app_intent + min(bi, 8) / 4.0
         lab = labels.get(canonical_kw.lower())
-        vol = lab["volume"] if lab else None
+        vol = lab.get("volume") if lab else None
         magnote = None
         if ch == "app-store" and lab is not None:
             if vol is not None and vol >= 40:
