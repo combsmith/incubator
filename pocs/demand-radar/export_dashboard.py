@@ -2,20 +2,26 @@
 """Export candidates + BOTH opportunity lenses to a compact JSON for the dashboard.
  - Gap lens (build an absent/weak niche): score from rank_starter_list.py logic.
  - Disruption lens (attack a proven market with a beatable leader): market_size x dissatisfaction.
-Includes a record if it's a non-REJECT gap candidate OR a disruption target."""
+Includes a record if it's a non-REJECT gap candidate OR a disruption target.
+Each row also carries `seen` (first_seen date), `new` (first seen in the last 7 days — the
+board's "New this week" filter and the weekly digest list the same rows) and `dd` (link to
+the keyword's deep-dive brief, when one has been written)."""
 
 import json
 import math
 import os
 import re
+from datetime import datetime, timedelta, timezone
 
-from records import load_current
+from patterns import slug
+from records import first_seen, load_current
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 GAP_W = {"absent-in-store": 3, "absent": 3, "nascent": 2, "stale": 2, "low-quality": 2, "thin": 1, "served": 0}
 COMP_W = {"low": 2, "medium": 1, "high": 0}
 STOP = {"app", "apps", "the", "for", "best", "free", "pro", "plus", "with", "your"}
 DISRUPT_USERS, DISRUPT_RATING = 8000, 4.2
+NEW_WINDOW_DAYS = 7  # "New this week": first seen within the last 7 days, today included
 
 
 def toks(q):
@@ -121,7 +127,16 @@ def wedge_from(rg):
     return [tmpl[c] for c in order[:3]] or None
 
 
-def main():
+def deep_dive_link(kw):
+    """Relative link (from dashboard.html, and from the Pages site root of the board) to the
+    keyword's deep-dive brief, or None when none has been written."""
+    rel = f"output/deepdive/{slug(kw)}.md"
+    return rel if os.path.exists(os.path.join(HERE, rel)) else None
+
+
+def main(today=None):
+    today = today or datetime.now(timezone.utc).date()
+    cutoff = (today - timedelta(days=NEW_WINDOW_DAYS - 1)).isoformat()
     labels, broad, resented = load_labels(), load_broad(), load_resented()
     out = []
     for r in load_current(HERE):
@@ -165,6 +180,7 @@ def main():
         dscore = round(max(ds_star, ds_res), 2)
         verdict = "DISRUPT" if dis else v
         sup = r["supply"]
+        seen = first_seen(r)
         out.append(
             {
                 "kw": r["canonical_query"],
@@ -200,6 +216,9 @@ def main():
                 "bestRating": sup.get("best_existing_rating"),
                 "fresh": sup.get("freshest_incumbent_days"),
                 "relInc": sup.get("relevant_incumbents"),
+                "seen": seen,
+                "new": bool(seen and cutoff <= seen <= today.isoformat()),
+                "dd": deep_dive_link(r["canonical_query"]),
                 "apps": [
                     {
                         "n": a.get("app"),
@@ -216,7 +235,11 @@ def main():
     with open(dest, "w", encoding="utf-8") as f:
         json.dump(out, f, separators=(",", ":"))
     nd = sum(1 for x in out if x["disrupt"])
-    print(f"wrote {len(out)} candidates ({nd} disruption targets) -> {dest} ({os.path.getsize(dest) // 1024} KB)")
+    nn = sum(1 for x in out if x["new"])
+    print(
+        f"wrote {len(out)} candidates ({nd} disruption targets, {nn} new this week) -> {dest} "
+        f"({os.path.getsize(dest) // 1024} KB)"
+    )
 
 
 if __name__ == "__main__":

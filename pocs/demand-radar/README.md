@@ -27,8 +27,9 @@ SILENT — a job that keeps hitting a banned endpoint only extends the ban.
 scarcity + community corroboration + (app-store channel) MobileAction demand.
 
 Runs weekly + on demand via [`.github/workflows/demand-radar-signal.yml`](../../.github/workflows/demand-radar-signal.yml),
-which uploads exactly `output/dashboard-data.json`, `output/starter-list.md`, and `dashboard.html`
-as the `demand-radar` artifact. The pipeline itself is standard-library only, so it runs on bare
+which uploads `output/dashboard-data.json`, `output/starter-list.md`, `output/weekly-digest.md`,
+`output/deepdive/` and `dashboard.html` as the `demand-radar` artifact (see
+[Weekly research session](#weekly-research-session) below). The pipeline itself is standard-library only, so it runs on bare
 `python3` (no pip). The separate repository test CI (`build-and-test` in `.github/workflows/ci.yml`)
 does `pip install pytest` to run the unit tests.
 
@@ -88,9 +89,9 @@ daily-batch** process. The pipeline is built for exactly this:
   keywords), **pollution-safe** (a throttled/failed fetch is skipped, never written as a false gap),
   and has a **403-storm circuit breaker**: a 403/429 is never retried, and after 15 consecutive failed
   fetches the batch is aborted and the stage reports failure; unscored keywords stay pending for the next run.
-- The scheduled Action runs **weekly** with a bounded batch (`--max 240 --rate 18`) over the
-  **priority** set only (top 50 per vertical ≈ 1,250 keywords), so priority coverage accumulates over
-  several runs. The full 11,616-keyword space is scored only by an explicit `extract.py --source all`.
+- The scheduled Action runs the **weekly** preset with a bounded batch (`--max 240 --rate 18`) over
+  a fresh, never-scored slice each week (see below); the `refresh` preset still scores the fixed
+  **priority** set (top 50 per vertical ≈ 1,250 keywords). The full 11,616-keyword space is scored only by an explicit `extract.py --source all`.
   `extract.py` interleaves verticals when it loads keywords, so every partial batch spans all 25.
   It never re-scores a keyword that already has a record: once the priority set is covered, a
   refresh updates community metrics and the exports only. Remove rows from `output/records.jsonl`
@@ -120,6 +121,8 @@ architecture for a repeatable process anyway.
 - `extract.py` — supply extractor (stdlib)
 - `enrich_community.py` — community sizing + corroboration (stdlib; Reddit/HN backends)
 - `rank_starter_list.py` — merges labels, demand-aware ranking → `starter-list.md`
+- `weekly.py`, `digest.py`, `keyword-seeds.json` — the weekly slice and `output/weekly-digest.md`
+- `analyst_check.py`, `post_signals.py`, `prompts/weekly-signals-analyst.md` — the Analyst review
 - `labels/mobileaction-labels.json` — manual MobileAction ground truth (app-store magnitude)
 - `output/` — generated `records.jsonl`, `records.enriched.jsonl`, `summary.md`, `starter-list.md`
 
@@ -133,6 +136,8 @@ the committed `output/` data:
 - `tests/test_funnel_stages.py`, `tests/test_enrich_export_pipeline.py` — the I/O layers
   (fetchers, resume, pacing, throttle/ban handling, file outputs, CLI plumbing, the pipeline
   runner) against a faked `urlopen` and `tmp_path` files.
+- `tests/test_weekly.py` — the weekly session: rotation, the slice, `first_seen` stamping, the
+  digest, the `weekly` preset wiring, the Analyst comment gate and the Discussion poster.
 
 ```
 cd pocs/demand-radar && python3 -m pytest tests/ -q
@@ -155,10 +160,51 @@ network stages are non-fatal so a partial refresh still ships):
 
 ```
 python3 pipeline.py --preset full     # bootstrap: generate→broad(DDG)→priority→extract→enrich→resented→export→build
-python3 pipeline.py --preset refresh  # scheduled cadence: priority→extract(bounded)→enrich→export→build
+python3 pipeline.py --preset weekly   # scheduled: NEW keywords each week (see below)
+python3 pipeline.py --preset refresh  # priority→extract(bounded)→enrich→export→build
 python3 pipeline.py --preset export   # re-derive dashboard only (no network)
 ```
 
-The scheduled Action (`.github/workflows/demand-radar-signal.yml`) runs `--preset refresh`
-weekly and uploads `dashboard.html` + data as a build artifact. Publishing that to the live
-claude.ai Artifact is a separate step (CI can't call the Artifact tool).
+The scheduled Action (`.github/workflows/demand-radar-signal.yml`) runs `--preset weekly`
+every Monday and uploads `dashboard.html` + data as a build artifact. Publishing that to the
+live claude.ai Artifact is a separate step (CI can't call the Artifact tool).
+
+## Weekly research session
+
+`--preset weekly` (issue #186) brings in new ideas each week instead of only refreshing the
+numbers of the fixed priority set:
+
+1. **Rotated slice** (`weekly.py`): every pending user-phrase seed from `keyword-seeds.json`
+   (franchise / "X alternative" searches the grid can't produce) plus the never-scored keywords
+   of 3 verticals in rotation. The rotation is a pure function of the ISO week (all 25 verticals
+   within 9 weeks); a rotated vertical with nothing left hands its place to the next one. Then
+   broad → priority (top `--per-vertical` per vertical, all seeds) → supply → enrich on that
+   slice only. Every run adds keywords never scored before until the idea space is covered; the
+   digest then says **Lexicon exhausted**.
+2. **Resented-giant scan** of the markets that became proven since the last scan
+   (`resented_giants.py` skips leaders it already scanned), capped at `--resented-max` (40).
+3. **Deep-dives** (`deep_dive.run`) on the top `--deep-dives` (3) new board entries by signal /
+   disruption score that have no brief yet.
+4. **`first_seen`** on every record (set by `extract.py`, backfilled from `captured_at`), a
+   **New this week** filter on the board (first seen in the last 7 days), deep-dive links, and
+   `output/weekly-digest.md`: the slice, which community source ran (YouTube is skipped without
+   `YOUTUBE_API_KEY`), the new entries (the same rows as the board filter), newly resented
+   leaders, deep-dives written, and what dropped off.
+
+Limits: iTunes stays at `--rate` (18/min) in the supply pass and the deep-dives, ~19/min in the
+resented scan (4.5 s pacing); the slice costs at most 600 autocomplete calls (`weekly.BROAD_CAP`,
+far under the ~6k burst ceiling); StackExchange / YouTube spend stays inside `enrich_community`'s
+daily budgets. A 403 storm still trips extract's breaker and the run finishes DEGRADED, which
+keeps the last good Pages site.
+
+Week-to-week state (records, broad scores, the resented scan, deep-dives, last week's board)
+travels as the `demand-radar-state` artifact of the last default-branch run (90-day retention);
+without one the committed snapshot is the starting point.
+
+**Analyst review.** After the run, the workflow's `analyst` job has Mary (the BMAD Analyst)
+read the digest and the new deep-dives headlessly, following `prompts/weekly-signals-analyst.md`,
+and draft one comment naming up to three ideas worth an Ideas Discussion. `post-signals` then
+re-runs `analyst_check.py` from a clean checkout (every line cites `[record: vertical / keyword]`
+or `[deep-dive: slug]` and each citation resolves; at most three ideas) and `post_signals.py`
+adds the comment, once per ISO week, to the "DemandRadar — weekly signals" Discussion (General).
+It never opens, comments on or labels an Ideas Discussion; promoting an idea stays a human call.

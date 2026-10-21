@@ -31,6 +31,7 @@ import urllib.parse
 import urllib.request
 
 from errors import StageError, run_cli
+from records import merge as merge_records
 
 UA = "DemandRadar-spike/0.4 (+combsmith/incubator; research)"
 
@@ -281,7 +282,11 @@ def default_source():
     return os.environ.get("DR_COMMUNITY_SOURCE", "")
 
 
-def run(inp=IN_PATH, out=OUT_PATH, source="", max_n=300, sleep=0.25):
+def run(inp=IN_PATH, out=OUT_PATH, source="", max_n=300, sleep=0.25, only=None):
+    """Enrich the top survivors. `only` (a set of (industry, canonical_query)) narrows the
+    targets to one slice — the weekly preset's new keywords — and then starts from the
+    current enriched copy of every record, so metrics from earlier runs are kept rather
+    than rewritten as empty."""
     # A forced source that cannot work would otherwise "succeed" with every target written
     # as source "none" — fail up front instead. (Auto-routing still just skips youtube.)
     if source and source not in BUDGET:
@@ -292,9 +297,14 @@ def run(inp=IN_PATH, out=OUT_PATH, source="", max_n=300, sleep=0.25):
     has_youtube_key = bool(os.environ.get("YOUTUBE_API_KEY"))
     if source == "youtube" and not has_youtube_key:
         raise StageError("Error: --source youtube requires YOUTUBE_API_KEY. Aborting instead of falling back.")
-    with open(inp, encoding="utf-8") as f:
-        records = [json.loads(line) for line in f]
+    if only is None:
+        with open(inp, encoding="utf-8") as f:
+            records = [json.loads(line) for line in f]
+    else:
+        records = merge_records(inp, out)
     survivors = [r for r in records if not r.get("verdict_heuristic", "").startswith("REJECT")]
+    if only is not None:
+        survivors = [r for r in survivors if (r.get("industry"), r.get("canonical_query")) in only]
     survivors.sort(key=supply_score, reverse=True)
     targets = survivors[:max_n] if max_n else survivors  # 0 = no cap (same meaning as extract --max)
     print(f"records={len(records)} survivors={len(survivors)} enriching_top={len(targets)}", flush=True)

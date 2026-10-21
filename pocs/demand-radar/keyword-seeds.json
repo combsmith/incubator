@@ -1,0 +1,57 @@
+{
+  "_comment": "Curated 'real user phrase' seeds (README refinement list): franchise and 'X alternative' searches the domain x tool grid in generate_keywords.py cannot produce. Keys must be verticals from generate_keywords.VERTICALS. The weekly preset scores pending seeds every run, whatever the vertical rotation. Edit freely; add a phrase to bring it into the idea space.",
+  "seeds": {
+    "gaming-companions": [
+      "minecraft world backup",
+      "minecraft bedrock backup",
+      "stardew valley planner",
+      "elden ring build planner",
+      "animal crossing island planner",
+      "pokemon go raid finder",
+      "genshin wish tracker"
+    ],
+    "tabletop-ttrpg": [
+      "dnd character sheet",
+      "dnd initiative tracker",
+      "mtg life counter",
+      "warhammer army builder"
+    ],
+    "collectors-hobbies": [
+      "pokemon card scanner",
+      "lego set tracker",
+      "coin value checker",
+      "sports card price checker"
+    ],
+    "student-education": [
+      "quizlet alternative",
+      "anki alternative",
+      "duolingo alternative"
+    ],
+    "health-fitness": [
+      "myfitnesspal alternative",
+      "strava alternative"
+    ],
+    "everyday-utilities": [
+      "camscanner alternative",
+      "photo storage cleaner"
+    ],
+    "travel-outdoors": [
+      "alltrails alternative"
+    ],
+    "finance-money": [
+      "splitwise alternative",
+      "mint alternative"
+    ],
+    "creator-content": [
+      "youtube thumbnail maker",
+      "instagram grid planner"
+    ],
+    "niche-sports": [
+      "disc golf scorecard",
+      "pickleball score keeper"
+    ],
+    "music-audio": [
+      "ultimate guitar alternative"
+    ]
+  }
+}
