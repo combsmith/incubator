@@ -644,6 +644,11 @@ class TestAnalystCheck:
         text = "".join(idea.format(n=i) for i in range(4))
         assert any("at most 3" in e for e in self.check(data, text))
 
+    def test_other_heading_levels_count_as_ideas(self, data):
+        idea = "## {n}. Dog\n- gap [record: pets / dog walk log]\n"
+        text = "".join(idea.format(n=i) for i in range(4))
+        assert any("at most 3" in e for e in self.check(data, text))
+
     def test_an_uncited_claim_fails(self, data):
         text = GOOD_COMMENT + "- Huge market, millions of users\n"
         assert any("no citation" in e for e in self.check(data, text))

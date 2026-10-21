@@ -268,7 +268,6 @@ jobs:
     # this run's files and write a draft, never post, label or open anything.
     permissions:
       contents: read       # checkout the overlay prompt + the citation gate
-      id-token: write      # claude-code-action OIDC
     outputs:
       drafted: ${{ steps.cred.outputs.ok == 'true' && steps.mary.outcome == 'success' }}
     steps:
@@ -298,7 +297,7 @@ jobs:
         id: mary
         if: ${{ steps.cred.outputs.ok == 'true' }}
         # SECURITY: the model reads generated text (review excerpts inside the deep-dives)
-        # with Bash/Write/Edit allowed, so it gets only this job's read-only GITHUB_TOKEN and
+        # with only cat/jq/the citation gate allowed in Bash (plus Write/Edit), so it gets only this job's read-only GITHUB_TOKEN and
         # nothing privileged runs after it here. The gate + post happen in `post-signals`
         # from a clean checkout.
         env:
@@ -309,7 +308,7 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           claude_args: |
             --model opus
-            --allowedTools Bash,Read,Write,Edit,Glob,Grep
+            --allowedTools "Bash(python3 pocs/demand-radar/analyst_check.py),Bash(jq:*),Bash(cat:*),Read,Write,Edit,Glob,Grep"
           prompt: |
             You are **Mary** 📊, the BMAD Business Analyst, running as an automated,
             non-interactive reviewer of the DemandRadar weekly run in ${{ github.repository }}.

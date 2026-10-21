@@ -14,8 +14,8 @@
 # Issue #186 (weekly research session) adds, and these tests pin:
 #   - the schedule runs the `weekly` preset; run state is carried between runs as the
 #     `demand-radar-state` artifact (refresh job: + actions: read, nothing that writes);
-#   - the Analyst (`analyst`) gets a read-only token (contents: read + id-token: write for
-#     claude-code-action) and never a Discussions scope;
+#   - the Analyst (`analyst`) gets a read-only token (contents: read only; Bash limited to
+#     cat/jq/the citation gate) and never a Discussions scope;
 #   - only the isolated `post-signals` job holds discussions: write, and it runs the
 #     citation gate from a clean checkout before posting.
 # Free-per-repo workflow (tier 3): the shape below is this repo's, not an org stub.
@@ -75,10 +75,9 @@ _perms() {
   [ "$(printf '%s\n' "$DEPLOY" | grep -cE '^      pages: write')" -eq 1 ]
 }
 
-@test "id-token: write appears only in deploy-pages (Pages OIDC) and analyst (claude-code-action OIDC)" {
-  [ "$(grep -cE '^\s+id-token: write' "$DR_YML")" -eq 2 ]
+@test "id-token: write appears only in deploy-pages (Pages OIDC)" {
+  [ "$(grep -cE '^\s+id-token: write' "$DR_YML")" -eq 1 ]
   [ "$(printf '%s\n' "$DEPLOY" | grep -cE '^      id-token: write')" -eq 1 ]
-  [ "$(printf '%s\n' "$ANALYST" | grep -cE '^      id-token: write')" -eq 1 ]
 }
 
 @test "the deploy-pages job does not check out the repo (no contents permission needed)" {
@@ -198,8 +197,11 @@ _perms() {
 
 @test "the analyst job has a read-only token and no Discussions scope" {
   [ -n "$ANALYST" ]
-  [ "$(_perms "$ANALYST")" = "contents: read id-token: write " ]
+  [ "$(_perms "$ANALYST")" = "contents: read " ]
   printf '%s\n' "$ANALYST" | grep -qE '^        uses: anthropics/claude-code-action@'
+  # Bash is limited to cat, jq and the citation gate — never a bare `Bash`
+  printf '%s\n' "$ANALYST" | grep -qF 'Bash(python3 pocs/demand-radar/analyst_check.py)'
+  if printf '%s\n' "$ANALYST" | grep -qE 'allowedTools.*[ ,"]Bash[ ,"]'; then false; fi
   printf '%s\n' "$ANALYST" | grep -qE 'prompts/weekly-signals-analyst\.md'
   if printf '%s\n' "$ANALYST" | grep -qE 'post_signals\.py'; then false; fi
 }

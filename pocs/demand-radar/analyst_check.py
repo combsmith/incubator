@@ -8,7 +8,7 @@ the model runs it before it finishes, and the workflow runs it again from a clea
 before anything is posted, so an uncited or fabricated comment never reaches the Discussion.
 
 Rules:
-  * at most MAX_IDEAS ideas, one `### ` heading each;
+  * at most MAX_IDEAS ideas, one heading each (every heading but the title counts);
   * every line that is not a heading, a blank line or the fixed NO_IDEAS sentence carries a
     citation — `[record: <vertical> / <keyword>]` (a row on the board) or
     `[deep-dive: <slug>]` (a brief under output/deepdive/) — and every citation resolves;
@@ -31,6 +31,7 @@ DEEPDIVE_DIR = os.path.join(HERE, "output", "deepdive")
 MAX_IDEAS = 3
 MAX_CHARS = 6000
 NO_IDEAS = "No idea cleared the bar this week."
+TITLE_PREFIX = "## DemandRadar — weekly signals"
 RECORD_RE = re.compile(r"\[record:\s*([a-z0-9-]+)\s*/\s*([^\]]+?)\s*\]", re.I)
 DEEPDIVE_RE = re.compile(r"\[deep-dive:\s*([^\]]+?)\s*\]", re.I)
 SLUG_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
@@ -57,9 +58,12 @@ def check(text, data_path=DATA_PATH, deepdive_dir=DEEPDIVE_DIR):
         line = raw.strip()
         if MENTION_RE.search(line):
             errs.append(f"line {n}: @-mention — the comment must not ping anyone")
-        if line.startswith("### "):
-            ideas += 1
-        if not line or line.startswith("#") or line == NO_IDEAS or line == "---":
+        if line.startswith("#"):
+            # any heading other than the title is an idea, whatever its level
+            if not line.startswith(TITLE_PREFIX):
+                ideas += 1
+            continue
+        if not line or line == NO_IDEAS or line == "---":
             continue
         records = RECORD_RE.findall(line)
         dives = DEEPDIVE_RE.findall(line)
