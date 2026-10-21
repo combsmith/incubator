@@ -116,8 +116,12 @@ def main():
     if not token or not repo:
         print("GITHUB_TOKEN and GITHUB_REPOSITORY are required", file=sys.stderr)
         return 1
-    with open(COMMENT_PATH, encoding="utf-8") as f:
-        body = f.read()
+    try:
+        with open(COMMENT_PATH, encoding="utf-8") as f:
+            body = f.read()
+    except (OSError, UnicodeError) as e:  # file-access / encoding — report, don't traceback
+        print(f"could not read the signals comment: {e}", file=sys.stderr)
+        return 1
     try:
         url = post(body, _today(), repo=repo, token=token)
     except (PostError, OSError) as e:  # OSError: HTTP/network failure talking to the API

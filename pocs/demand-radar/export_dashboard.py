@@ -147,8 +147,8 @@ def main(today=None):
         dis = star_dis or res_flag  # disruption = low-rated giant OR well-rated-but-RESENTED giant
         if v.startswith("REJECT") and not dis:  # keep gap-candidates OR disruption targets
             continue
-        gap = r["gap"]["gap_type"]
-        comp = r["supply"]["competition_intensity"]
+        gap = r.get("gap", {}).get("gap_type", "")
+        comp = r.get("supply", {}).get("competition_intensity", "")
         ch = r["discovery_channel"]
         cm = (r.get("demand") or {}).get("community_metric") or {}
         m = cm.get("mentions")
@@ -179,16 +179,16 @@ def main(today=None):
         ds_res = math.log10(ms) * rg["resent_frac"] if res_flag and ms > 0 else 0.0
         dscore = round(max(ds_star, ds_res), 2)
         verdict = "DISRUPT" if dis else v
-        sup = r["supply"]
+        sup = r.get("supply") or {}
         seen = first_seen(r)
         out.append(
             {
-                "kw": r["canonical_query"],
-                "vert": r["industry"],
+                "kw": r.get("canonical_query", ""),
+                "vert": r.get("industry", ""),
                 "ch": ch,
                 "gap": gap,
                 "comp": comp,
-                "sat": sup["best_existing_satisfaction"],
+                "sat": sup.get("best_existing_satisfaction"),
                 "verdict": verdict,
                 "score": round(score, 1),
                 "comm": m,

@@ -114,12 +114,18 @@ def build(today, rows, prev_rows, info, resented_before, resented_after, dives, 
 
 
 def run(today, info, before, dives, degraded, data_path=DATA_PATH, resented_path=RESENTED_PATH, out_path=OUT_PATH):
-    with open(data_path, encoding="utf-8") as f:
-        rows = json.load(f)
+    try:
+        with open(data_path, encoding="utf-8") as f:
+            rows = json.load(f)
+    except (OSError, json.JSONDecodeError) as e:  # file-access / JSON decode error
+        rows = []
     resented = {}
     if os.path.exists(resented_path):
-        with open(resented_path, encoding="utf-8") as f:
-            resented = json.load(f)
+        try:
+            with open(resented_path, encoding="utf-8") as f:
+                resented = json.load(f)
+        except (OSError, json.JSONDecodeError):
+            resented = {}
     md = build(
         today=today,
         rows=rows,
