@@ -153,7 +153,8 @@ def main(today=None):
         cm = (r.get("demand") or {}).get("community_metric") or {}
         m = cm.get("mentions")
         m = m if isinstance(m, int) else None
-        bi, app_intent = broad.get(r["canonical_query"].lower(), (0, 0))
+        canonical_kw = r.get("canonical_query", "")
+        bi, app_intent = broad.get(canonical_kw.lower(), (0, 0))
         gap_w = GAP_W.get(gap, 0)
         trust = None
         if gap == "absent-in-store":
@@ -163,7 +164,7 @@ def main(today=None):
             elif not (app_intent or bi >= 6):
                 gap_w = 0.5
         score = gap_w + COMP_W.get(comp, 0) + cbonus(m, cm.get("source")) + app_intent + min(bi, 8) / 4.0
-        lab = labels.get(r["canonical_query"].lower())
+        lab = labels.get(canonical_kw.lower())
         vol = lab["volume"] if lab else None
         magnote = None
         if ch == "app-store" and lab is not None:
@@ -218,7 +219,7 @@ def main(today=None):
                 "relInc": sup.get("relevant_incumbents"),
                 "seen": seen,
                 "new": bool(seen and cutoff <= seen <= today.isoformat()),
-                "dd": deep_dive_link(r["canonical_query"]),
+                "dd": deep_dive_link(canonical_kw),
                 "apps": [
                     {
                         "n": a.get("app"),

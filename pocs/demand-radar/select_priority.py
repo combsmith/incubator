@@ -30,7 +30,7 @@ def rank(rows, per_vertical):
     by_vert = defaultdict(list)
     for r in rows:
         if r.get("broad_interest") is not None:
-            by_vert[r["vertical"]].append(r)
+            by_vert[r.get("vertical", "")].append(r)
     picked = []
     for vrows in by_vert.values():
         vrows.sort(
@@ -48,8 +48,8 @@ def write(out, picked):
             f.write(
                 json.dumps(
                     {
-                        "keyword": r["keyword"],
-                        "vertical": r["vertical"],
+                        "keyword": r.get("keyword", ""),
+                        "vertical": r.get("vertical", ""),
                         "discovery_channel": r.get("discovery_channel"),
                         "vertical_dynamics": r.get("vertical_dynamics"),
                         "broad_interest": r.get("broad_interest"),
@@ -67,14 +67,14 @@ def run(inp=IN_PATH, out=OUT_PATH, per_vertical=50):
     with open(inp, encoding="utf-8") as f:
         rows = [json.loads(line) for line in f]
     picked = rank(rows, per_vertical)
-    by_vert = {r["vertical"] for r in rows if r.get("broad_interest") is not None}
+    by_vert = {r.get("vertical", "") for r in rows if r.get("broad_interest") is not None}
     write(out, picked)
 
     print(f"Selected {len(picked)} priority keywords ({per_vertical}/vertical x {len(by_vert)}) -> {out}")
     top = sorted(picked, key=lambda r: (r.get("broad_interest", 0), r.get("app_intent", 0)), reverse=True)[:20]
     print("Top 20 by broad demand:")
     for r in top:
-        print(f"  bi={r.get('broad_interest')} app={r.get('app_intent')}  {r['keyword']:<26} [{r['vertical']}]")
+        print(f"  bi={r.get('broad_interest')} app={r.get('app_intent')}  {r.get('keyword', ''):<26} [{r.get('vertical', '')}]")
     return len(picked)
 
 
