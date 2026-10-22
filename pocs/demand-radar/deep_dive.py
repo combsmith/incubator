@@ -173,7 +173,7 @@ def load_ma_label(kw):
         with open(p, encoding="utf-8") as fh:
             labels = json.load(fh).get("labels", [])
         for label in labels:
-            if label["keyword"].lower() == kw.lower():
+            if label.get("keyword", "").lower() == kw.lower():
                 return label
     return None
 
@@ -299,7 +299,7 @@ def run(keyword, top=8, pages=3, min_ratings=2000, rate=0):
             "updated": (a.get("currentVersionReleaseDate") or "")[:7],
             "genre": a.get("primaryGenreName"),
         }
-        if c["count"] >= min_ratings and c["id"]:
+        if c.get("count", 0) >= min_ratings and c.get("id"):
             revs = reviews(c["id"], pages)
             if revs is None or not revs:
                 c["reviews_unavailable"] = True  # rendered as unknown ("n/a"), not 0%
@@ -354,10 +354,10 @@ def run(keyword, top=8, pages=3, min_ratings=2000, rate=0):
             res = "n/a"
         else:
             res = "—"
-        name = (c["app"] or "—").replace("|", "\\|")
-        L.append(f"| {name} | {c['rating']} | {c['count']:,} | {c['price'] or '—'} | {c['updated'] or '—'} | {res} |")
+        name = (c.get("app") or "—").replace("|", "\\|")
+        L.append(f"| {name} | {c.get('rating')} | {c.get('count', 0):,} | {c.get('price') or '—'} | {c.get('updated') or '—'} | {res} |")
     cutoff = time.strftime("%Y-%m", time.gmtime(time.time() - 365 * 86400))
-    stale = [c["app"] for c in comps if c["updated"] and c["updated"] < cutoff]
+    stale = [c.get("app") for c in comps if c.get("updated") and c.get("updated") < cutoff]
     if stale:
         L.append(f"\n*Aging (no update since {cutoff}):* {', '.join(stale)} — softer targets.")
     L.append("\n## What the market gets wrong — the openings\n")
@@ -366,7 +366,7 @@ def run(keyword, top=8, pages=3, min_ratings=2000, rate=0):
         for c in comps:
             for q in (c.get("reviews", {}).get("quotes", {}).get(cat, []))[:1]:
                 # collapse literal newlines so a multi-line review body stays one list item
-                L.append('    - *"{}"* — {}'.format(" ".join(q["t"].split()), " ".join(q["b"].split())))
+                L.append('    - *"{}"* — {}'.format(" ".join(q.get("t", "").split()), " ".join(q.get("b", "").split())))
                 break
     L.append("\n## What users love — preserve these\n")
     L.append(", ".join(f"**{k}** ({v})" for k, v in loves.most_common(8)) or "—")

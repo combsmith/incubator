@@ -111,12 +111,12 @@ def run(inp=IN_PATH, out=OUT_PATH, workers=8, engine="ddg"):
                         # (e.g. "medication tracker" in pets vs. seniors) as a DISTINCT
                         # opportunity, so a keyword-only key would drop the second vertical.
                         if rec.get("broad_interest") is not None:
-                            done.add((rec.get("vertical"), rec["keyword"]))
+                            done.add((rec.get("vertical"), rec.get("keyword")))
                     except Exception:  # noqa: BLE001
                         pass
         except OSError as e:
             raise StageError(f"Error reading existing broad keywords from {out}: {e}") from e
-    pending = [k for k in kws if (k.get("vertical"), k["keyword"]) not in done]
+    pending = [k for k in kws if (k.get("vertical"), k.get("keyword")) not in done]
     print(f"total={len(kws)} done={len(done)} pending={len(pending)} workers={workers}", flush=True)
 
     lock = threading.Lock()
@@ -127,8 +127,8 @@ def run(inp=IN_PATH, out=OUT_PATH, workers=8, engine="ddg"):
         def work(k):
             pace()  # global rate limit BEFORE the request — spaces bursts across all workers
             try:
-                sg = suggest(k["keyword"], engine=engine)
-                rec = {**k, **score(k["keyword"], sg), "suggestions": sg[:6]}
+                sg = suggest(k.get("keyword", ""), engine=engine)
+                rec = {**k, **score(k.get("keyword", ""), sg), "suggestions": sg[:6]}
                 okk = True
             except Exception:  # noqa: BLE001
                 rec = {**k, "broad_interest": None, "n_suggestions": None, "error": True}
