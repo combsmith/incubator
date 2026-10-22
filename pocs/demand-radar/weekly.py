@@ -197,9 +197,7 @@ def deep_dives(n=3, rate=18, data_path=DATA_PATH, written=None):
             print(f"  ! deep dive failed for {kw!r}: {e}", flush=True)
             failed.append(kw)
             continue
-        written.append(
-            {"kw": kw, "vert": r.get("vert"), "slug": slug(kw), "path": f"deepdive/{slug(kw)}.md"}
-        )
+        written.append({"kw": kw, "vert": r.get("vert"), "slug": slug(kw), "path": f"deepdive/{slug(kw)}.md"})
     if failed:
         raise StageError(f"deep dive failed for: {', '.join(failed)}")
     return written
