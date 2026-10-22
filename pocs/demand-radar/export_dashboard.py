@@ -231,12 +231,12 @@ def main(today=None):
                 ],
             }
         )
-    out.sort(key=lambda x: (-max(x["score"], x["dScore"] * 2), x["kw"]))
+    out.sort(key=lambda x: (-max(x.get("score", 0), (x.get("dScore") or 0) * 2), x.get("kw", "")))
     dest = os.path.join(HERE, "output", "dashboard-data.json")
     with open(dest, "w", encoding="utf-8") as f:
         json.dump(out, f, separators=(",", ":"))
-    nd = sum(1 for x in out if x["disrupt"])
-    nn = sum(1 for x in out if x["new"])
+    nd = sum(1 for x in out if x.get("disrupt"))
+    nn = sum(1 for x in out if x.get("new"))
     print(
         f"wrote {len(out)} candidates ({nd} disruption targets, {nn} new this week) -> {dest} "
         f"({os.path.getsize(dest) // 1024} KB)"

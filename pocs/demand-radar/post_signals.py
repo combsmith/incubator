@@ -110,13 +110,18 @@ def post(body, today, repo, token):
     thread = find_thread(token, repo)
     if thread is None:
         thread = create_thread(token, repo)
-    elif already_posted(token, thread["id"], marker):
-        print(f"this week's signals are already posted ({marker}); nothing to do")
-        return None
+    else:
+        thread_id = thread.get("id")
+        if thread_id and already_posted(token, thread_id, marker):
+            print(f"this week's signals are already posted ({marker}); nothing to do")
+            return None
     m = """mutation($id: ID!, $body: String!) {
       addDiscussionComment(input: {discussionId: $id, body: $body}) { comment { url } } }"""
     text = f"{marker}\n{body.strip()}{FOOTER}"
-    data = _gql(token, m, {"id": thread["id"], "body": text})
+    thread_id = thread.get("id")
+    if not thread_id:
+        raise PostError("no discussion id in thread")
+    data = _gql(token, m, {"id": thread_id, "body": text})
     url = data.get("addDiscussionComment", {}).get("comment", {}).get("url")
     if not url:
         raise PostError("failed to add the signals comment")
