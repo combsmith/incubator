@@ -41,8 +41,14 @@ MENTION_RE = re.compile(r"(?<![\w.])@[A-Za-z0-9]")
 def _board(data_path):
     if not os.path.exists(data_path):
         return set()
-    with open(data_path, encoding="utf-8") as f:
-        return {(r.get("vert", "").lower(), r.get("kw", "").lower()) for r in json.load(f)}
+    try:
+        with open(data_path, encoding="utf-8") as f:
+            data = json.load(f)
+            if not isinstance(data, list):
+                return set()
+            return {(r.get("vert", "").lower(), r.get("kw", "").lower()) for r in data if isinstance(r, dict)}
+    except (IOError, OSError, json.JSONDecodeError, UnicodeDecodeError):
+        return set()
 
 
 def check(text, data_path=DATA_PATH, deepdive_dir=DEEPDIVE_DIR):
@@ -84,8 +90,12 @@ def main():
     if not os.path.exists(COMMENT_PATH):
         print(f"FAIL: no comment at {COMMENT_PATH}", file=sys.stderr)
         return 1
-    with open(COMMENT_PATH, encoding="utf-8") as f:
-        text = f.read()
+    try:
+        with open(COMMENT_PATH, encoding="utf-8") as f:
+            text = f.read()
+    except (IOError, OSError, UnicodeDecodeError) as e:
+        print(f"FAIL: cannot read {COMMENT_PATH}: {e}", file=sys.stderr)
+        return 1
     errs = check(text, data_path=DATA_PATH, deepdive_dir=DEEPDIVE_DIR)
     for e in errs:
         print(f"FAIL: {e}", file=sys.stderr)
