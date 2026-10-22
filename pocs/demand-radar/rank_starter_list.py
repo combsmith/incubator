@@ -77,14 +77,14 @@ def main():
         v = r.get("verdict_heuristic", "")
         if v.startswith("REJECT"):
             continue
-        gap = r["gap"]["gap_type"]
-        comp = r["supply"]["competition_intensity"]
+        gap = (r.get("gap") or {}).get("gap_type")
+        comp = (r.get("supply") or {}).get("competition_intensity")
         cbonus, mentions = community_bonus(r)
-        bi, app_intent = broad.get(r["canonical_query"].lower(), (0, 0))
+        bi, app_intent = broad.get(r.get("canonical_query", "").lower(), (0, 0))
         gap_w = GAP_W.get(gap, 0)
         trust_note = None
         if gap == "absent-in-store":
-            if r["discovery_channel"] == "app-store":
+            if r.get("discovery_channel") == "app-store":
                 # UNRELIABLE on app-store: usually a relevance false-negative (a real app
                 # exists under a different name — 'step calculator' vs 'Pedometer++'). Do NOT
                 # let it top the list on 'absent' alone; only MobileAction volume (below) can
@@ -96,13 +96,13 @@ def main():
                 gap_w = 0.5  # community nonsense combo (no demand)
         demand_bonus = app_intent + min(bi, 8) / 4.0  # reward real autocomplete demand
         score = gap_w + COMP_W.get(comp, 0) + cbonus + demand_bonus
-        lab = labels.get(r["canonical_query"].lower())
-        vol = lab["volume"] if lab else None
+        lab = labels.get(r.get("canonical_query", "").lower())
+        vol = lab.get("volume") if lab else None
         # Demand-aware: MobileAction magnitude only applies to app-store channel (#44).
         # A labeled app-store candidate with real volume gets a boost; one that is N/A
         # or at the ~5 floor is demand-validated-EMPTY -> heavy demote (real gap, no demand).
         mag_note = None
-        if r["discovery_channel"] == "app-store" and lab is not None:
+        if r.get("discovery_channel") == "app-store" and lab is not None:
             if vol is not None and vol >= 40:
                 score += 2
                 mag_note = "demand-validated"
@@ -111,16 +111,16 @@ def main():
             else:  # vol <= ~5 floor, or null/N/A
                 score -= 3
                 mag_note = "no store demand"
-        needs_mag = (r["discovery_channel"] == "app-store") and (lab is None)
+        needs_mag = (r.get("discovery_channel") == "app-store") and (lab is None)
         rows.append(
             {
                 "score": round(score, 1),
-                "kw": r["canonical_query"],
-                "group": r["industry"],
-                "channel": r["discovery_channel"],
+                "kw": r.get("canonical_query", ""),
+                "group": r.get("industry", ""),
+                "channel": r.get("discovery_channel", ""),
                 "gap": gap,
                 "comp": comp,
-                "sat": r["supply"]["best_existing_satisfaction"],
+                "sat": (r.get("supply") or {}).get("best_existing_satisfaction"),
                 "mentions": mentions,
                 "demand": f"{app_intent}/{bi}",
                 "vol": vol,

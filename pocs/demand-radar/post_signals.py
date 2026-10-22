@@ -56,7 +56,7 @@ def _gql(token, query, variables):
     with urllib.request.urlopen(req, timeout=30) as resp:
         out = json.loads(resp.read().decode("utf-8"))
     if out.get("errors"):
-        raise PostError("GraphQL: " + "; ".join(e.get("message", "?") for e in out["errors"]))
+        raise PostError("GraphQL: " + "; ".join((e or {}).get("message", "?") if isinstance(e, dict) else "?" for e in out["errors"]))
     return out.get("data", {})
 
 
