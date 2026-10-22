@@ -40,7 +40,7 @@ def load_labels():
     p = os.path.join(HERE, "labels", "mobileaction-labels.json")
     if os.path.exists(p):
         with open(p, encoding="utf-8") as f:
-            return {lab["keyword"].lower(): lab for lab in json.load(f).get("labels", [])}
+            return {lab.get("keyword", "").lower(): lab for lab in json.load(f).get("labels", []) if lab.get("keyword")}
     return {}
 
 
@@ -51,8 +51,8 @@ def load_broad():
         with open(p, encoding="utf-8") as f:
             for line in f:
                 r = json.loads(line)
-                if r.get("broad_interest") is not None:
-                    out[r["keyword"].lower()] = (r.get("broad_interest") or 0, r.get("app_intent") or 0)
+                if r.get("broad_interest") is not None and r.get("keyword"):
+                    out[r.get("keyword", "").lower()] = (r.get("broad_interest") or 0, r.get("app_intent") or 0)
     return out
 
 
@@ -92,7 +92,7 @@ def disruption(rec):
     if sup is None:
         return 0, None, None, False
     if sup.get("market_size") is not None:  # scored with the new detector
-        ms, lr, sols = sup["market_size"], sup.get("leader_rating"), sup.get("solutions", [])
+        ms, lr, sols = sup.get("market_size"), sup.get("leader_rating"), sup.get("solutions", [])
         # The detector's leader is the relevant incumbent whose review count IS market_size
         # (extract.analyze). Recover it by that count — the rule resented_giants.py keys
         # resented.json on — so a leader that was relevant through its description rather

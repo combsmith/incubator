@@ -64,7 +64,7 @@ def find_thread(token, repo):
     q = """query($q: String!) { search(query: $q, type: DISCUSSION, first: 10) {
       nodes { ... on Discussion { id title url category { name } } } } }"""
     data = _gql(token, q, {"q": f'repo:{repo} in:title "{THREAD_TITLE}"'})
-    for d in data["search"]["nodes"]:
+    for d in data.get("search", {}).get("nodes", []):
         cat = ((d or {}).get("category") or {}).get("name", "")
         if d and d.get("title") == THREAD_TITLE and cat.lower() != FORBIDDEN_CATEGORY:
             return d
