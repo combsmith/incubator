@@ -60,8 +60,7 @@ def _gql(token, query, variables):
         if not isinstance(errors, list):
             errors = [errors]
         raise PostError(
-            "GraphQL: "
-            + "; ".join((e or {}).get("message", "?") if isinstance(e, dict) else "?" for e in errors)
+            "GraphQL: " + "; ".join((e or {}).get("message", "?") if isinstance(e, dict) else "?" for e in errors)
         )
     return out.get("data", {})
 
