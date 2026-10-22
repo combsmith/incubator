@@ -2,7 +2,7 @@
 
 > **Cron: pause `feature-ideation.yml`'s weekly schedule until something triages its output.** 52 bot ideas, 0 human comments on any of them, and the bot's "Weekly Update" comments stopped after 2026-08-31 (9 comments on 8 ideas, none since), so the "weekly" refresh is not happening either. Keep `workflow_dispatch` and the `discussion: created` enhancer. The stub allows editing the cron line. This report changes nothing.
 
-Read-only report. Nothing was posted to, labelled on, or closed in GitHub. The file is not committed.
+Read-only report. Nothing was posted to, labelled on, or closed in GitHub.
 
 ## Scope and method
 
@@ -80,7 +80,7 @@ Counts: **5 advance, 1 already briefed, 13 park, 1 close.** Many discussions ins
 | 5 | Agent-config scanners (#146 + 8) | "Scanning the Harness" paper (Sept 2026, verified) and a released OSS scanner. Evidence supports adopting a scanner, not building one. |
 | 6 | AgentFirewall (#115) | The org runs mention-triggered agents on untrusted text. Cited external incidents are unverified. |
 | 7 | MCP / A2A conformance (#48 + 4) | Bot-reported spec release, MCPJam and CVEs. Unverified, no org need. |
-| 8 | Prompt testing (#73 + 2) | Promptfoo acquired by OpenAI 2026-03-09 (verified). The org has 6+ agent prompts, but OpenAI kept the project open source. |
+| 8 | Prompt testing (#73 + 2) | OpenAI announced plans to acquire Promptfoo on 2026-03-09 (verified; the announcement said closing was subject to conditions). The org has 6+ agent prompts, but OpenAI kept the project open source. |
 | 9 | Agent cost (#49 + 2) | Bot-reported GitHub usage billing (unverified). The org runs several Claude-backed agents, but nobody has measured the spend. |
 | 10 | Agent Plugins 1.0 tooling (#136 + 4) | Bot- and idea-reported multi-vendor spec (Aug 2026, date inconsistent). No org use. |
 
