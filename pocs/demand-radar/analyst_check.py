@@ -63,9 +63,9 @@ def check(text, data_path=DATA_PATH, deepdive_dir=DEEPDIVE_DIR):
     for n, raw in enumerate(text.splitlines(), 1):
         line = raw.strip()
         if line.startswith("#"):
-            # only the exact title format "## DemandRadar — weekly signals · YYYY-MM-DD" is exempt
-            # any other heading, including ones that extend the prefix, counts as an idea
-            if not re.match(r"^## DemandRadar — weekly signals · \d{4}-\d{2}-\d{2}$", line):
+            # only the exact title format with date is exempt; any other heading counts as an idea
+            title_pattern = rf"^{re.escape(TITLE_PREFIX)} · \d{{4}}-\d{{2}}-\d{{2}}$"
+            if not re.match(title_pattern, line):
                 ideas += 1
             continue
         if MENTION_RE.search(line):
