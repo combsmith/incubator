@@ -43,7 +43,12 @@ name: Feature Research & Ideation (BMAD Analyst)
 
 on:
   schedule:
-    - cron: '0 7 * * 5' # Friday 07:00 UTC (3 AM EDT / 2 AM EST)
+    # PAUSED 2026-10-22 (owner decision, docs/ideas-triage-2026-10.md): nothing triages the
+    # ideas this files, so the weekly run only grows an untriaged backlog. Feb 29 at 07:00 UTC
+    # fires only in leap years (next 2028-02-29), so scheduled runs are effectively off while
+    # the stub keeps its required schedule trigger; workflow_dispatch and the discussion
+    # enhancer still work. Restore '0 7 * * 5' (Friday 07:00 UTC) to resume.
+    - cron: '0 7 29 2 *'
   workflow_dispatch:
     inputs:
       focus_area:
