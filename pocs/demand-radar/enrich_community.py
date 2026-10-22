@@ -331,7 +331,7 @@ def run(inp=IN_PATH, out=OUT_PATH, source="", max_n=300, sleep=0.25, only=None):
     changed = []
     for i, r in enumerate(targets):
         cm = fetch_for(r, source or None, budget_left, rtoken, dead)
-        if "demand" not in r:
+        if not isinstance(r.get("demand"), dict):
             r["demand"] = {}
         r["demand"]["community_metric"] = cm
         nv, note = recompute(r, cm)

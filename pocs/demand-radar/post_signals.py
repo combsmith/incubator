@@ -73,7 +73,7 @@ def find_thread(token, repo):
         if not isinstance(d, dict):
             continue
         cat = ((d or {}).get("category") or {}).get("name", "")
-        if d and d.get("title") == THREAD_TITLE and cat.lower() != FORBIDDEN_CATEGORY:
+        if d and d.get("title") == THREAD_TITLE and cat.lower() == CATEGORY.lower():
             return d
     return None
 

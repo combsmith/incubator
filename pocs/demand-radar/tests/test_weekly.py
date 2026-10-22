@@ -689,6 +689,10 @@ class TestAnalystCheck:
         assert any("empty" in e for e in self.check(data, "  \n"))
         assert any("long" in e for e in self.check(data, "x" * (analyst_check.MAX_CHARS + 1)))
 
+    def test_mentions_in_headings_fail(self, data):
+        text = GOOD_COMMENT + "### 1. @someone\n- gap [record: pets / dog walk log]\n"
+        assert any("@-mention" in e for e in self.check(data, text))
+
     def test_main_reads_the_fixed_paths(self, data, monkeypatch, capsys):
         (data / "signals-comment.md").write_text(GOOD_COMMENT, encoding="utf-8")
         monkeypatch.setattr(analyst_check, "COMMENT_PATH", str(data / "signals-comment.md"))
@@ -773,6 +777,11 @@ class TestPostSignals:
 
     def test_ignores_a_same_titled_thread_in_ideas(self, monkeypatch):
         fake = FakeGraphQL(existing={**self.THREAD, "category": {"name": "Ideas"}})
+        self.post(monkeypatch, fake)
+        assert any("createDiscussion" in r["query"] for r in fake.requests)
+
+    def test_ignores_a_same_titled_thread_in_another_category(self, monkeypatch):
+        fake = FakeGraphQL(existing={**self.THREAD, "category": {"name": "Q&A"}})
         self.post(monkeypatch, fake)
         assert any("createDiscussion" in r["query"] for r in fake.requests)
 

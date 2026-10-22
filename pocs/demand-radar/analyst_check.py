@@ -62,14 +62,14 @@ def check(text, data_path=DATA_PATH, deepdive_dir=DEEPDIVE_DIR):
     ideas = 0
     for n, raw in enumerate(text.splitlines(), 1):
         line = raw.strip()
+        if MENTION_RE.search(line):
+            errs.append(f"line {n}: @-mention — the comment must not ping anyone")
         if line.startswith("#"):
             # only the exact title format with date is exempt; any other heading counts as an idea
             title_pattern = rf"^{re.escape(TITLE_PREFIX)} · \d{{4}}-\d{{2}}-\d{{2}}$"
             if not re.match(title_pattern, line):
                 ideas += 1
             continue
-        if MENTION_RE.search(line):
-            errs.append(f"line {n}: @-mention — the comment must not ping anyone")
         if not line or line == NO_IDEAS or line == "---":
             continue
         records = RECORD_RE.findall(line)
