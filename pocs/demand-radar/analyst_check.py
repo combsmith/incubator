@@ -47,7 +47,7 @@ def _board(data_path):
             if not isinstance(data, list):
                 return set()
             return {(r.get("vert", "").lower(), r.get("kw", "").lower()) for r in data if isinstance(r, dict)}
-    except (IOError, OSError, json.JSONDecodeError, UnicodeDecodeError):
+    except (OSError, json.JSONDecodeError, UnicodeDecodeError):
         return set()
 
 
@@ -93,8 +93,8 @@ def main():
     try:
         with open(COMMENT_PATH, encoding="utf-8") as f:
             text = f.read()
-    except (IOError, OSError, UnicodeDecodeError) as e:
-        print(f"FAIL: cannot read {COMMENT_PATH}: {e}", file=sys.stderr)
+    except (OSError, UnicodeDecodeError):
+        print(f"FAIL: cannot read {COMMENT_PATH}", file=sys.stderr)
         return 1
     errs = check(text, data_path=DATA_PATH, deepdive_dir=DEEPDIVE_DIR)
     for e in errs:
