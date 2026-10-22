@@ -62,13 +62,13 @@ def check(text, data_path=DATA_PATH, deepdive_dir=DEEPDIVE_DIR):
     ideas = 0
     for n, raw in enumerate(text.splitlines(), 1):
         line = raw.strip()
-        if MENTION_RE.search(line):
-            errs.append(f"line {n}: @-mention — the comment must not ping anyone")
         if line.startswith("#"):
             # any heading other than the title is an idea, whatever its level
             if not line.startswith(TITLE_PREFIX):
                 ideas += 1
             continue
+        if MENTION_RE.search(line):
+            errs.append(f"line {n}: @-mention — the comment must not ping anyone")
         if not line or line == NO_IDEAS or line == "---":
             continue
         records = RECORD_RE.findall(line)
