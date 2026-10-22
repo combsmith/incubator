@@ -56,9 +56,12 @@ def _gql(token, query, variables):
     with urllib.request.urlopen(req, timeout=30) as resp:
         out = json.loads(resp.read().decode("utf-8"))
     if out.get("errors"):
+        errors = out.get("errors", [])
+        if not isinstance(errors, list):
+            errors = [errors]
         raise PostError(
             "GraphQL: "
-            + "; ".join((e or {}).get("message", "?") if isinstance(e, dict) else "?" for e in out["errors"])
+            + "; ".join((e or {}).get("message", "?") if isinstance(e, dict) else "?" for e in errors)
         )
     return out.get("data", {})
 
@@ -68,6 +71,8 @@ def find_thread(token, repo):
       nodes { ... on Discussion { id title url category { name } } } } }"""
     data = _gql(token, q, {"q": f'repo:{repo} in:title "{THREAD_TITLE}"'})
     for d in data.get("search", {}).get("nodes", []):
+        if not isinstance(d, dict):
+            continue
         cat = ((d or {}).get("category") or {}).get("name", "")
         if d and d.get("title") == THREAD_TITLE and cat.lower() != FORBIDDEN_CATEGORY:
             return d
@@ -80,7 +85,9 @@ def create_thread(token, repo):
       id discussionCategories(first: 50) { nodes { id name } } } }"""
     data = _gql(token, q, {"owner": owner, "name": name})
     r = data.get("repository") or {}
-    cat = next((c for c in r.get("discussionCategories", {}).get("nodes", []) if c.get("name") == CATEGORY), None)
+    disc_cats = r.get("discussionCategories") or {}
+    nodes = disc_cats.get("nodes") or []
+    cat = next((c for c in nodes if c.get("name") == CATEGORY), None)
     if cat is None:
         raise PostError(f"no {CATEGORY!r} discussion category in {repo}")
     m = """mutation($repositoryId: ID!, $categoryId: ID!, $title: String!, $body: String!) {
@@ -100,7 +107,9 @@ def create_thread(token, repo):
 def already_posted(token, discussion_id, marker):
     q = """query($id: ID!) { node(id: $id) { ... on Discussion { comments(last: 30) { nodes { body } } } } }"""
     data = _gql(token, q, {"id": discussion_id})
-    nodes = data.get("node", {}).get("comments", {}).get("nodes") or []
+    node = data.get("node") or {}
+    comments = node.get("comments") or {}
+    nodes = comments.get("nodes") or []
     return any(marker in (c.get("body") or "") for c in nodes)
 
 
@@ -125,7 +134,9 @@ def post(body, today, repo, token):
     if not thread_id:
         raise PostError("no discussion id in thread")
     data = _gql(token, m, {"id": thread_id, "body": text})
-    url = data.get("addDiscussionComment", {}).get("comment", {}).get("url")
+    add_result = data.get("addDiscussionComment") or {}
+    comment = add_result.get("comment") or {}
+    url = comment.get("url")
     if not url:
         raise PostError("failed to add the signals comment")
     return url
