@@ -117,6 +117,8 @@ def run(today, info, before, dives, degraded, data_path=DATA_PATH, resented_path
     try:
         with open(data_path, encoding="utf-8") as f:
             rows = json.load(f)
+            if not isinstance(rows, list):
+                rows = []
     except (OSError, json.JSONDecodeError):  # file-access / JSON decode error
         rows = []
     resented = {}
@@ -124,6 +126,8 @@ def run(today, info, before, dives, degraded, data_path=DATA_PATH, resented_path
         try:
             with open(resented_path, encoding="utf-8") as f:
                 resented = json.load(f)
+                if not isinstance(resented, dict):
+                    resented = {}
         except (OSError, json.JSONDecodeError):
             resented = {}
     md = build(

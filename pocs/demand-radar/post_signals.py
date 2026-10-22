@@ -55,6 +55,8 @@ def _gql(token, query, variables):
     )
     with urllib.request.urlopen(req, timeout=30) as resp:
         out = json.loads(resp.read().decode("utf-8"))
+    if not isinstance(out, dict):
+        out = {}
     if out.get("errors"):
         errors = out.get("errors", [])
         if not isinstance(errors, list):
