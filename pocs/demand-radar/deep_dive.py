@@ -355,7 +355,9 @@ def run(keyword, top=8, pages=3, min_ratings=2000, rate=0):
         else:
             res = "—"
         name = (c.get("app") or "—").replace("|", "\\|")
-        L.append(f"| {name} | {c.get('rating')} | {c.get('count', 0):,} | {c.get('price') or '—'} | {c.get('updated') or '—'} | {res} |")
+        L.append(
+            f"| {name} | {c.get('rating')} | {c.get('count', 0):,} | {c.get('price') or '—'} | {c.get('updated') or '—'} | {res} |"
+        )
     cutoff = time.strftime("%Y-%m", time.gmtime(time.time() - 365 * 86400))
     stale = [c.get("app") for c in comps if c.get("updated") and c.get("updated") < cutoff]
     if stale:
