@@ -12,6 +12,8 @@ landscape, and synthesizes a WEDGE + writes a readable opportunity brief.
 
 Outputs: output/deepdive/<slug>.json  and  output/deepdive/<slug>.md
 Free data only (iTunes Search API + customer-reviews RSS). Paced; no auth.
+pipeline.py --preset weekly calls run() on the week's top new entries, with --rate pacing
+every iTunes call so a batch of briefs stays inside the ~20/min limit.
 """
 
 import argparse
@@ -20,11 +22,12 @@ import itertools
 import json
 import os
 import re
+import threading
 import time
 import urllib.parse
 import urllib.request
 
-from patterns import cat_pattern
+from patterns import cat_pattern, slug
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 UA = "DemandRadar-spike/0.6 (+combsmith/incubator; research)"
@@ -140,8 +143,28 @@ def _clip(text, n):
     return text if len(text) <= n else text[:n].rstrip() + "…"
 
 
-def get(url):
+# --- rate limiter: run(rate=N) spaces every iTunes call >= 60/N s apart (0 = unpaced CLI) ---
+_pace_lock = threading.Lock()
+_next_at = [0.0]
+_min_interval = [0.0]
+
+
+def pace():
+    with _pace_lock:
+        now = time.time()
+        wait = max(0.0, _next_at[0] - now)
+        _next_at[0] = max(now, _next_at[0]) + _min_interval[0]
+    if wait > 0:
+        time.sleep(wait)
+
+
+def _fetch(url):
     return urllib.request.urlopen(urllib.request.Request(url, headers={"User-Agent": UA}), timeout=20).read()
+
+
+def get(url):
+    pace()
+    return _fetch(url)
 
 
 def load_ma_label(kw):
@@ -150,7 +173,7 @@ def load_ma_label(kw):
         with open(p, encoding="utf-8") as fh:
             labels = json.load(fh).get("labels", [])
         for label in labels:
-            if label["keyword"].lower() == kw.lower():
+            if label.get("keyword", "").lower() == kw.lower():
                 return label
     return None
 
@@ -250,23 +273,17 @@ def synth_wedge(market_gripes, loves):
     return w
 
 
-def main():
-    ap = argparse.ArgumentParser()
-    ap.add_argument("--keyword", required=True)
-    ap.add_argument("--top", type=int, default=8)
-    ap.add_argument("--pages", type=int, default=3)
-    ap.add_argument(
-        "--min-ratings", type=int, default=2000, help="only review-mine competitors above this (real incumbents)"
-    )
-    args = ap.parse_args()
-
-    kw = args.keyword
-    slug = re.sub(r"[^a-z0-9]+", "-", kw.lower()).strip("-")
+def run(keyword, top=8, pages=3, min_ratings=2000, rate=0):
+    """Write the opportunity brief for one keyword; return the markdown path. rate > 0 caps
+    iTunes calls per minute (the weekly pipeline passes its --rate)."""
+    _min_interval[0] = 60.0 / rate if rate > 0 else 0.0
+    kw = keyword
+    brief = slug(kw)
     outdir = os.path.join(HERE, "output", "deepdive")
     os.makedirs(outdir, exist_ok=True)
     ma = load_ma_label(kw)
 
-    apps = competitors(kw, args.top)
+    apps = competitors(kw, top)
     time.sleep(2.0)
     comps = []
     market_gripes = collections.Counter()
@@ -282,8 +299,8 @@ def main():
             "updated": (a.get("currentVersionReleaseDate") or "")[:7],
             "genre": a.get("primaryGenreName"),
         }
-        if c["count"] >= args.min_ratings and c["id"]:
-            revs = reviews(c["id"], args.pages)
+        if c.get("count", 0) >= min_ratings and c.get("id"):
+            revs = reviews(c["id"], pages)
             if revs is None or not revs:
                 c["reviews_unavailable"] = True  # rendered as unknown ("n/a"), not 0%
             else:
@@ -313,7 +330,7 @@ def main():
         "wishes": all_wishes[:10],
         "wedge": wedge,
     }
-    with open(os.path.join(outdir, slug + ".json"), "w", encoding="utf-8") as fh:
+    with open(os.path.join(outdir, brief + ".json"), "w", encoding="utf-8") as fh:
         json.dump(result, fh, indent=2)
 
     # ---- markdown brief ----
@@ -332,15 +349,17 @@ def main():
     for c in comps:
         rv = c.get("reviews")
         if rv:
-            res = f"{int(rv['resent_frac'] * 100)}%"
+            res = f"{int(rv.get('resent_frac', 0) * 100)}%"
         elif c.get("reviews_unavailable"):
             res = "n/a"
         else:
             res = "—"
-        name = (c["app"] or "—").replace("|", "\\|")
-        L.append(f"| {name} | {c['rating']} | {c['count']:,} | {c['price'] or '—'} | {c['updated'] or '—'} | {res} |")
+        name = (c.get("app") or "—").replace("|", "\\|")
+        L.append(
+            f"| {name} | {c.get('rating')} | {c.get('count', 0):,} | {c.get('price') or '—'} | {c.get('updated') or '—'} | {res} |"
+        )
     cutoff = time.strftime("%Y-%m", time.gmtime(time.time() - 365 * 86400))
-    stale = [c["app"] for c in comps if c["updated"] and c["updated"] < cutoff]
+    stale = [c.get("app") for c in comps if c.get("updated") and c.get("updated") < cutoff]
     if stale:
         L.append(f"\n*Aging (no update since {cutoff}):* {', '.join(stale)} — softer targets.")
     L.append("\n## What the market gets wrong — the openings\n")
@@ -349,7 +368,7 @@ def main():
         for c in comps:
             for q in (c.get("reviews", {}).get("quotes", {}).get(cat, []))[:1]:
                 # collapse literal newlines so a multi-line review body stays one list item
-                L.append('    - *"{}"* — {}'.format(" ".join(q["t"].split()), " ".join(q["b"].split())))
+                L.append('    - *"{}"* — {}'.format(" ".join(q.get("t", "").split()), " ".join(q.get("b", "").split())))
                 break
     L.append("\n## What users love — preserve these\n")
     L.append(", ".join(f"**{k}** ({v})" for k, v in loves.most_common(8)) or "—")
@@ -360,10 +379,26 @@ def main():
     L.append("\n## The wedge — how to win\n")
     for b in wedge:
         L.append(f"- {b}")
-    with open(os.path.join(outdir, slug + ".md"), "w", encoding="utf-8") as fh:
+    md_path = os.path.join(outdir, brief + ".md")
+    with open(md_path, "w", encoding="utf-8") as fh:
         fh.write("\n".join(L) + "\n")
-    print(f"wrote {outdir}/{slug}.md (+ .json)")
-    print("\n".join(L))
+    print(f"wrote {md_path} (+ .json)")
+    return md_path
+
+
+def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--keyword", required=True)
+    ap.add_argument("--top", type=int, default=8)
+    ap.add_argument("--pages", type=int, default=3)
+    ap.add_argument(
+        "--min-ratings", type=int, default=2000, help="only review-mine competitors above this (real incumbents)"
+    )
+    ap.add_argument("--rate", type=float, default=0, help="max iTunes calls/min (0 = unpaced)")
+    args = ap.parse_args()
+    md_path = run(args.keyword, top=args.top, pages=args.pages, min_ratings=args.min_ratings, rate=args.rate)
+    with open(md_path, encoding="utf-8") as fh:
+        print(fh.read(), end="")
 
 
 if __name__ == "__main__":

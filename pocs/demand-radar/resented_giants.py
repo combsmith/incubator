@@ -166,11 +166,12 @@ def run(inp=IN_PATH, out_path=OUT_PATH, min_market=8000, max_n=0, sleep=2.2):
         records = [json.loads(line) for line in f]
     leaders = {}
     for r in records:
-        ms = r["supply"].get("market_size") or 0
+        supply = r.get("supply") or {}
+        ms = supply.get("market_size") or 0
         if ms < min_market:
             continue
         lead = next(
-            (a for a in r["supply"].get("solutions", []) if (a.get("rating_count") or 0) == ms and a.get("app")), None
+            (a for a in supply.get("solutions", []) if (a.get("rating_count") or 0) == ms and a.get("app")), None
         )
         if not lead:
             continue
@@ -180,9 +181,9 @@ def run(inp=IN_PATH, out_path=OUT_PATH, min_market=8000, max_n=0, sleep=2.2):
                 "app": lead["app"],
                 "id": lead.get("id"),
                 "market": ms,
-                "vert": r["industry"],
-                "kw": r["canonical_query"],
-                "leaderR": r["supply"].get("leader_rating"),
+                "vert": r.get("industry"),
+                "kw": r.get("canonical_query"),
+                "leaderR": supply.get("leader_rating"),
             }
 
     if os.path.exists(out_path):

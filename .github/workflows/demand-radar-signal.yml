@@ -1,31 +1,46 @@
 # ─────────────────────────────────────────────────────────────────────────────
-# DemandRadar — scheduled refresh (SPIKE, not an org-standard agent)
+# DemandRadar — weekly research session (SPIKE, not an org-standard agent)
 #
 # Runs the whole funnel with one command: pocs/demand-radar/pipeline.py.
-#   refresh (default) : select_priority -> extract(bounded) -> enrich -> export -> build
+#   weekly (schedule) : a rotated slice of NEW keywords (user-phrase seeds + 3 verticals) ->
+#                       broad -> priority -> supply -> enrich on that slice, resented scan of
+#                       newly proven markets, deep-dives on the top new entries, first_seen
+#                       stamps, and output/weekly-digest.md (issue #186)
+#   refresh           : select_priority -> extract(bounded) -> enrich -> export -> build
 #   full              : + generate + broad(DDG) + resented scan  (slow/ban-prone; rare)
 # All data + the built dashboard.html are uploaded as a build artifact. A CLEAN run on the
-# default branch also publishes dashboard.html to GitHub Pages (Discussion #165) so the board
-# has one stable, self-refreshing URL; a DEGRADED run keeps the last good site. Publishing to
-# the live claude.ai Artifact is a separate manual/LLM step (CI can't call the Artifact tool).
+# default branch also publishes dashboard.html (+ the digest and deep-dive briefs it links)
+# to GitHub Pages (Discussion #165) so the board has one stable, self-refreshing URL; a
+# DEGRADED run keeps the last good site. Publishing to the live claude.ai Artifact is a
+# separate manual/LLM step (CI can't call the Artifact tool).
+#
+# Run state (records, broad scores, resented scan, deep-dives) is carried from week to week
+# as the `demand-radar-state` artifact of the last default-branch run, so the weekly slice
+# really moves on: the job reads it back (actions: read) before the pipeline runs and falls
+# back to the committed snapshot when there is none.
+#
+# After the run, Mary (the BMAD Analyst) reads the digest + new deep-dives headlessly and
+# drafts ONE comment for the "DemandRadar — weekly signals" Discussion (`analyst`, read-only
+# token). A separate job (`post-signals`) re-checks every citation from a clean checkout and
+# posts it — the decision-brief model/land split. Nothing is ever promoted automatically.
 #
 # Disposable POC workflow under pocs/. Not a thin caller to an org reusable (none exists).
 # Free data only; YOUTUBE_API_KEY / REDDIT_* secrets are optional (enrich falls back to
 # StackExchange/HackerNews). Every free endpoint IP-bans bursts — the scripts pace/resume.
 # ─────────────────────────────────────────────────────────────────────────────
-name: DemandRadar — scheduled refresh (spike)
+name: DemandRadar — weekly research session (spike)
 
 on:
   schedule:
-    - cron: '17 6 * * 1'   # Monday 06:17 UTC — weekly refresh
+    - cron: '17 6 * * 1'   # Monday 06:17 UTC — weekly research session (preset: weekly)
   workflow_dispatch:
     inputs:
       preset:
         description: 'pipeline preset'
         required: false
-        default: 'refresh'
+        default: 'weekly'
         type: choice
-        options: [refresh, full, export]
+        options: [weekly, refresh, full, export]
       max:
         description: 'extract/enrich batch cap'
         required: false
@@ -46,18 +61,64 @@ concurrency:
 jobs:
   refresh:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    # weekly at --max 240 / --rate 18: supply ~14 min + resented scan <= ~7 min + three
+    # paced deep-dives ~4 min + enrich; 60 leaves headroom for a slow autocomplete slice
+    timeout-minutes: 60
     permissions:
-      contents: read       # checkout only; results go to a build artifact, not the repo
+      contents: read       # checkout only; results go to build artifacts, not the repo
+      actions: read        # read back last week's demand-radar-state artifact
     outputs:
       # 'true' only when every pipeline stage succeeded. The deploy job keys off this so a
       # DEGRADED refresh (partial data) never replaces the last good published site.
       clean: ${{ steps.pipeline.outcome == 'success' }}
+      # 'true' when this run wrote output/weekly-digest.md — the Analyst review keys off it
+      digest: ${{ steps.digest.outputs.written == 'true' }}
+      # the data artifact's name (a DEGRADED run's carries a -degraded suffix)
+      artifact: demand-radar${{ steps.pipeline.outcome != 'success' && '-degraded' || '' }}
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false   # read-only job: never leave the token in .git/config
+
+      - name: Restore last week's run state
+        # The newest unexpired demand-radar-state artifact from a default-branch run. Without
+        # one (first run, expired, API blip) the committed snapshot is used — a warning, never
+        # a failure: every stage resumes from whatever records it finds.
+        env:
+          GH_TOKEN: ${{ github.token }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        run: |
+          # One retry after a short backoff for a transient API blip (org CI standard).
+          retry() {
+            "$@" && return 0
+            echo "::warning::'$*' failed (momentary network blip) — retrying once in 15s"
+            sleep 15
+            "$@"
+          }
+          state="$RUNNER_TEMP/dr-state"
+          list_state() {
+            gh api "repos/${GITHUB_REPOSITORY}/actions/artifacts?name=demand-radar-state&per_page=50" > "$RUNNER_TEMP/dr-artifacts.json"
+          }
+          fetch_state() {
+            rm -rf "$state"
+            gh run download "$1" -R "$GITHUB_REPOSITORY" -n demand-radar-state -D "$state"
+          }
+          if ! retry list_state; then
+            echo "::warning::could not list earlier run state — using the committed snapshot"
+            exit 0
+          fi
+          run_id="$(jq -r --arg b "$DEFAULT_BRANCH" '[.artifacts[] | select(.expired == false and .workflow_run.head_branch == $b)] | sort_by(.created_at) | last | .workflow_run.id // empty' "$RUNNER_TEMP/dr-artifacts.json")"
+          if [ -z "$run_id" ]; then
+            echo "::notice::no earlier demand-radar-state artifact — starting from the committed snapshot"
+            exit 0
+          fi
+          if ! retry fetch_state "$run_id"; then
+            echo "::warning::could not download the state of run $run_id — using the committed snapshot"
+            exit 0
+          fi
+          cp -R "$state/." pocs/demand-radar/output/
+          echo "restored run state from run $run_id"
 
       - name: Run DemandRadar pipeline (stdlib only — no pip)
         id: pipeline
@@ -70,7 +131,7 @@ jobs:
           DR_COMMUNITY_SOURCE: ${{ vars.DR_COMMUNITY_SOURCE || '' }}
           # Pass dispatch inputs through the env (never interpolate ${{ }} into the shell
           # body) so a crafted `max`/`rate` value can't inject commands on the runner.
-          DR_PRESET: ${{ github.event.inputs.preset || 'refresh' }}
+          DR_PRESET: ${{ github.event.inputs.preset || 'weekly' }}
           DR_MAX: ${{ github.event.inputs.max || '240' }}
           DR_RATE: ${{ github.event.inputs.rate || '18' }}
         run: |
@@ -93,6 +154,11 @@ jobs:
             if [ "$PIPELINE_OUTCOME" != "success" ]; then
               echo "> **DEGRADED** — a pipeline stage failed; the data below is a partial refresh."
             fi
+            # the weekly digest exists only when this run wrote it (gitignored, not in the state)
+            if [ -f pocs/demand-radar/output/weekly-digest.md ]; then
+              head -c 12000 pocs/demand-radar/output/weekly-digest.md
+              echo
+            fi
             head -c 4000 pocs/demand-radar/output/starter-list.md 2>/dev/null || true
           } >> "$GITHUB_STEP_SUMMARY"
 
@@ -106,18 +172,52 @@ jobs:
           path: |
             pocs/demand-radar/output/dashboard-data.json
             pocs/demand-radar/output/starter-list.md
+            pocs/demand-radar/output/weekly-digest.md
+            pocs/demand-radar/output/deepdive/
             pocs/demand-radar/dashboard.html
           retention-days: 30
+
+      - name: Note whether a weekly digest was written
+        id: digest
+        if: ${{ always() }}
+        run: |
+          if [ -s pocs/demand-radar/output/weekly-digest.md ]; then
+            echo "written=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Save the run state for next week
+        # Every run that reached the build stage, DEGRADED ones included: the stages are
+        # pollution-safe (a throttled fetch is never written as a record), so a partial run's
+        # records are still good and next week resumes after them. Default branch only, so a
+        # dispatched feature-branch run can never become next week's starting point.
+        if: ${{ always() && hashFiles('pocs/demand-radar/dashboard.html') != '' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: demand-radar-state
+          path: |
+            pocs/demand-radar/output/records.jsonl
+            pocs/demand-radar/output/records.enriched.jsonl
+            pocs/demand-radar/output/keywords.broad.jsonl
+            pocs/demand-radar/output/keywords.priority.jsonl
+            pocs/demand-radar/output/resented.json
+            pocs/demand-radar/output/dashboard-data.json
+            pocs/demand-radar/output/deepdive/
+          retention-days: 90
 
       - name: Stage the dashboard for GitHub Pages
         # Clean runs on the default branch only (Discussion #165). The board is served from
         # /demand-radar/ rather than the site root so other spikes can share the single site
         # a repo gets; the root page just forwards there. dashboard.html is self-contained
-        # (no external requests), so nothing else is staged.
+        # (no external requests); the only other files staged are the weekly digest and the
+        # deep-dive briefs it links to, at the same relative paths (output/...).
         if: ${{ steps.pipeline.outcome == 'success' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) }}
         run: |
-          mkdir -p _site/demand-radar
+          mkdir -p _site/demand-radar/output/deepdive
           cp pocs/demand-radar/dashboard.html _site/demand-radar/index.html
+          if [ -f pocs/demand-radar/output/weekly-digest.md ]; then
+            cp pocs/demand-radar/output/weekly-digest.md _site/demand-radar/output/
+          fi
+          find pocs/demand-radar/output/deepdive -maxdepth 1 -name '*.md' -exec cp {} _site/demand-radar/output/deepdive/ \;
           printf '%s\n' \
             '<!doctype html>' \
             '<meta charset="utf-8">' \
@@ -155,3 +255,123 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1
+
+  analyst:
+    name: Analyst review (Mary)
+    needs: refresh
+    # Default-branch runs that wrote a weekly digest — a DEGRADED one too (the digest says
+    # so); always() because a DEGRADED refresh job fails, which would otherwise skip this.
+    if: ${{ always() && needs.refresh.outputs.digest == 'true' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) && vars.AGENTS_PAUSED != 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    # contents: read is also the ceiling of the token the MODEL step gets: it can read
+    # this run's files and write a draft, never post, label or open anything.
+    permissions:
+      contents: read       # checkout the overlay prompt + the citation gate
+    outputs:
+      drafted: ${{ steps.cred.outputs.ok == 'true' && steps.mary.outcome == 'success' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Download this run's digest, deep-dives and board data
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: ${{ needs.refresh.outputs.artifact }}
+          path: pocs/demand-radar
+
+      - name: Check the Analyst credential
+        id: cred
+        env:
+          CLAUDE_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+        run: |
+          if [ -n "$CLAUDE_TOKEN" ]; then
+            echo "ok=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::notice::CLAUDE_CODE_OAUTH_TOKEN is not set — skipping this week's Analyst review"
+          fi
+
+      - name: Draft the weekly signals comment (BMAD Analyst)
+        id: mary
+        if: ${{ steps.cred.outputs.ok == 'true' }}
+        # SECURITY: the model reads generated text (review excerpts inside the deep-dives)
+        # with only cat/jq/the citation gate allowed in Bash (plus Write/Edit), so it gets only this job's read-only GITHUB_TOKEN and
+        # nothing privileged runs after it here. The gate + post happen in `post-signals`
+        # from a clean checkout.
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        uses: anthropics/claude-code-action@6c690188da61cf16ee7debb28383ba67f02abb4c # v1.0.242
+        with:
+          allowed_non_write_users: "*"
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          claude_args: |
+            --model opus
+            --allowedTools "Bash(python3 pocs/demand-radar/analyst_check.py),Bash(jq:*),Bash(cat:*),Read,Write,Edit,Glob,Grep"
+          prompt: |
+            You are **Mary** 📊, the BMAD Business Analyst, running as an automated,
+            non-interactive reviewer of the DemandRadar weekly run in ${{ github.repository }}.
+            Never ask, never greet, never wait (headless contract).
+
+            Read the stage overlay and follow every step of it:
+
+            ```bash
+            cat pocs/demand-radar/prompts/weekly-signals-analyst.md
+            ```
+
+            Your inputs are this week's files under `pocs/demand-radar/output/`
+            (`weekly-digest.md`, `deepdive/`, `dashboard-data.json`). Your only output is
+            `pocs/demand-radar/output/signals-comment.md`. Run
+            `python3 pocs/demand-radar/analyst_check.py` until it prints OK.
+            Post nothing, label nothing, open nothing — the workflow posts your file.
+
+      - name: Upload the drafted comment
+        if: ${{ steps.cred.outputs.ok == 'true' && steps.mary.outcome == 'success' }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: demand-radar-signals-comment
+          path: pocs/demand-radar/output/signals-comment.md
+          if-no-files-found: error
+          retention-days: 30
+
+  post-signals:
+    name: Post the weekly signals comment
+    needs: [refresh, analyst]
+    # Isolated from the model step: a fresh checkout of the gate + poster, this run's data
+    # artifact and the drafted comment only. The only job holding a write scope for
+    # Discussions, and it can only add one comment to the weekly-signals thread.
+    if: ${{ always() && needs.analyst.result == 'success' && needs.analyst.outputs.drafted == 'true' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read       # clean checkout of analyst_check.py + post_signals.py
+      discussions: write   # one comment on "DemandRadar — weekly signals" (created on first use)
+    steps:
+      - name: Checkout (clean)
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Download this run's board data and deep-dives
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: ${{ needs.refresh.outputs.artifact }}
+          path: pocs/demand-radar
+
+      - name: Download the drafted comment
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: demand-radar-signals-comment
+          path: pocs/demand-radar/output
+
+      - name: Citation gate
+        # The same check the model was told to run, from the clean checkout: every claim
+        # cites a board record or a deep-dive that exists, at most three ideas, no mentions.
+        run: python3 pocs/demand-radar/analyst_check.py
+
+      - name: Post to the weekly signals Discussion
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: python3 pocs/demand-radar/post_signals.py

@@ -17,6 +17,8 @@ resented_giants.py     # 4b review-TEXT disruption: mine 1-3star reviews of prov
 rank_starter_list.py   #    gap-lens ranking -> starter-list.md
 export_dashboard.py    #    merge BOTH lenses -> output/dashboard-data.json
 deep_dive.py --keyword "X"   # per-pick opportunity BRIEF -> output/deepdive/<slug>.{md,json}
+pipeline.py --preset weekly  # the Monday research session: rotated NEW slice + resented scan of new
+                             #    proven markets + deep-dives on the top new entries + weekly-digest.md
 ```
 
 Two lenses:
@@ -50,6 +52,12 @@ python3 -c "t=open('pocs/demand-radar/dashboard.tmpl.html').read(); d=open('pocs
   Keyword Inspector). Drive it via the Chrome browser tools; read Volume/Difficulty per keyword.
 - **Rate limits**: every free endpoint IP-bans bursts (iTunes ~20-30/min, DDG/Google Suggest ~6k). Use LOW
   concurrency + pacing from the first call; on a 403-storm go SILENT.
+
+## Weekly session (issue #186)
+The Monday schedule runs `--preset weekly` (README "Weekly research session"): new keywords every
+week, `first_seen` on every record, a **New this week** board filter, `output/weekly-digest.md`, and
+Mary's weekly comment in the "DemandRadar — weekly signals" Discussion. Edit `keyword-seeds.json` to
+add real user phrases. State carries between runs as the `demand-radar-state` artifact.
 
 ## Highest-value next steps
 1. **MobileAction-validate** the top disruption markets' search volume + the gap shortlist (turns list -> go/no-go).

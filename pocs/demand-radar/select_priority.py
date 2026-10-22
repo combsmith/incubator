@@ -24,33 +24,32 @@ IN_PATH = os.path.join(HERE, "output", "keywords.broad.jsonl")
 OUT_PATH = os.path.join(HERE, "output", "keywords.priority.jsonl")
 
 
-def run(inp=IN_PATH, out=OUT_PATH, per_vertical=50):
-    if per_vertical < 0:
-        # rows[:-n] would silently mean "all but the last n" and widen the supply pass
-        raise StageError(f"--per-vertical must be >= 0 (got {per_vertical})")
+def rank(rows, per_vertical):
+    """The top `per_vertical` scored rows of each vertical by broad demand (unscored rows,
+    broad_interest None, are dropped). Shared with the weekly slice (weekly.pick_priority)."""
     by_vert = defaultdict(list)
-    with open(inp, encoding="utf-8") as f:
-        for line in f:
-            r = json.loads(line)
-            if r.get("broad_interest") is None:
-                continue
-            by_vert[r["vertical"]].append(r)
-
+    for r in rows:
+        if r.get("broad_interest") is not None:
+            by_vert[r.get("vertical", "")].append(r)
     picked = []
-    for vert, rows in by_vert.items():
-        rows.sort(
+    for vrows in by_vert.values():
+        vrows.sort(
             key=lambda r: (r.get("broad_interest", 0), r.get("app_intent", 0), r.get("n_suggestions", 0)), reverse=True
         )
-        picked.extend(rows[:per_vertical])
+        picked.extend(vrows[:per_vertical])
+    return picked
 
-    # keep the schema extract.load_keywords expects, carry broad signal through
+
+def write(out, picked):
+    """Write picked rows in the schema extract.load_keywords expects, carrying the broad
+    signal through."""
     with open(out, "w", encoding="utf-8") as f:
         for r in picked:
             f.write(
                 json.dumps(
                     {
-                        "keyword": r["keyword"],
-                        "vertical": r["vertical"],
+                        "keyword": r.get("keyword", ""),
+                        "vertical": r.get("vertical", ""),
                         "discovery_channel": r.get("discovery_channel"),
                         "vertical_dynamics": r.get("vertical_dynamics"),
                         "broad_interest": r.get("broad_interest"),
@@ -60,11 +59,24 @@ def run(inp=IN_PATH, out=OUT_PATH, per_vertical=50):
                 + "\n"
             )
 
+
+def run(inp=IN_PATH, out=OUT_PATH, per_vertical=50):
+    if per_vertical < 0:
+        # rows[:-n] would silently mean "all but the last n" and widen the supply pass
+        raise StageError(f"--per-vertical must be >= 0 (got {per_vertical})")
+    with open(inp, encoding="utf-8") as f:
+        rows = [json.loads(line) for line in f]
+    picked = rank(rows, per_vertical)
+    by_vert = {r.get("vertical", "") for r in rows if r.get("broad_interest") is not None}
+    write(out, picked)
+
     print(f"Selected {len(picked)} priority keywords ({per_vertical}/vertical x {len(by_vert)}) -> {out}")
     top = sorted(picked, key=lambda r: (r.get("broad_interest", 0), r.get("app_intent", 0)), reverse=True)[:20]
     print("Top 20 by broad demand:")
     for r in top:
-        print(f"  bi={r.get('broad_interest')} app={r.get('app_intent')}  {r['keyword']:<26} [{r['vertical']}]")
+        print(
+            f"  bi={r.get('broad_interest')} app={r.get('app_intent')}  {r.get('keyword', ''):<26} [{r.get('vertical', '')}]"
+        )
     return len(picked)
 
 

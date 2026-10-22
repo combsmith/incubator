@@ -11,6 +11,13 @@
 #     from the default branch (a manual dispatch from a feature branch never publishes);
 #   - every action is SHA-pinned, per the org Action Pinning Policy;
 #   - the existing 30-day build artifact upload is preserved.
+# Issue #186 (weekly research session) adds, and these tests pin:
+#   - the schedule runs the `weekly` preset; run state is carried between runs as the
+#     `demand-radar-state` artifact (refresh job: + actions: read, nothing that writes);
+#   - the Analyst (`analyst`) gets a read-only token (contents: read only; Bash limited to
+#     cat/jq/the citation gate) and never a Discussions scope;
+#   - only the isolated `post-signals` job holds discussions: write, and it runs the
+#     citation gate from a clean checkout before posting.
 # Free-per-repo workflow (tier 3): the shape below is this repo's, not an org stub.
 
 DR_YML="${BATS_TEST_DIRNAME}/../.github/workflows/demand-radar-signal.yml"
@@ -29,7 +36,14 @@ _step_block() {
 setup() {
   REFRESH="$(_job_block refresh)"
   DEPLOY="$(_job_block deploy-pages)"
-  export REFRESH DEPLOY
+  ANALYST="$(_job_block analyst)"
+  POST="$(_job_block post-signals)"
+  export REFRESH DEPLOY ANALYST POST
+}
+
+# _perms BLOCK — the job's permission grants as one sorted "key: value " line.
+_perms() {
+  printf '%s\n' "$1" | awk '/^    permissions:/{p=1;next} /^    [a-z_-]+:/{p=0} p' | grep -oE '^      [a-z-]+: [a-z]+' | sed 's/^ *//' | sort | tr '\n' ' '
 }
 
 @test "demand-radar-signal.yml exists" {
@@ -47,9 +61,8 @@ setup() {
 
 # ── permission scope ────────────────────────────────────────────────────────────
 
-@test "the refresh job grants contents: read and nothing else" {
-  perms="$(printf '%s\n' "$REFRESH" | awk '/^    permissions:/{p=1;next} /^    [a-z_-]+:/{p=0} p' | grep -oE '^      [a-z-]+: [a-z]+' | sed 's/^ *//' | sort | tr '\n' ' ')"
-  [ "$perms" = "contents: read " ]
+@test "the refresh job grants only reads: contents (checkout) and actions (last week's state)" {
+  [ "$(_perms "$REFRESH")" = "actions: read contents: read " ]
 }
 
 @test "the deploy-pages job grants exactly pages: write and id-token: write" {
@@ -57,10 +70,14 @@ setup() {
   [ "$perms" = "id-token: write pages: write " ]
 }
 
-@test "pages: write and id-token: write appear only inside the deploy-pages job" {
-  # Two grants in the whole file, both of them in the deploy job block.
-  [ "$(grep -cE '^\s+(pages|id-token): write' "$DR_YML")" -eq 2 ]
-  [ "$(printf '%s\n' "$DEPLOY" | grep -cE '^      (pages|id-token): write')" -eq 2 ]
+@test "pages: write appears only inside the deploy-pages job" {
+  [ "$(grep -cE '^\s+pages: write' "$DR_YML")" -eq 1 ]
+  [ "$(printf '%s\n' "$DEPLOY" | grep -cE '^      pages: write')" -eq 1 ]
+}
+
+@test "id-token: write appears only in deploy-pages (Pages OIDC)" {
+  [ "$(grep -cE '^\s+id-token: write' "$DR_YML")" -eq 1 ]
+  [ "$(printf '%s\n' "$DEPLOY" | grep -cE '^      id-token: write')" -eq 1 ]
 }
 
 @test "the deploy-pages job does not check out the repo (no contents permission needed)" {
@@ -139,4 +156,74 @@ setup() {
   printf '%s\n' "$upload" | grep -qE '^        if: .*always\(\)'
   printf '%s\n' "$upload" | grep -qE '^        uses: actions/upload-artifact@'
   printf '%s\n' "$upload" | grep -qE '^          retention-days: 30$'
+}
+
+# ── weekly research session (issue #186) ────────────────────────────────────────
+
+@test "the schedule and the dispatch default run the weekly preset" {
+  printf '%s\n' "$REFRESH" | grep -qE "DR_PRESET: \\$\\{\\{ github\\.event\\.inputs\\.preset \\|\\| 'weekly' \\}\\}"
+  grep -qE "^        default: 'weekly'$" "$DR_YML"
+  grep -qE '^        options: \[weekly, refresh, full, export\]$' "$DR_YML"
+}
+
+@test "last week's state is restored before the pipeline runs" {
+  restore_line="$(printf '%s\n' "$REFRESH" | grep -nE "^      - name: Restore last week's run state$" | cut -d: -f1)"
+  pipeline_line="$(printf '%s\n' "$REFRESH" | grep -nE '^      - name: Run DemandRadar pipeline' | cut -d: -f1)"
+  [ -n "$restore_line" ] && [ -n "$pipeline_line" ]
+  [ "$restore_line" -lt "$pipeline_line" ]
+  restore="$(_step_block refresh "Restore last week's run state")"
+  printf '%s\n' "$restore" | grep -qE 'demand-radar-state'
+  # only default-branch state is trusted as a starting point
+  printf '%s\n' "$restore" | grep -qE 'head_branch == \$b'
+}
+
+@test "the run state is saved only from the default branch, with a long retention" {
+  save="$(_step_block refresh "Save the run state for next week")"
+  [ -n "$save" ]
+  printf '%s\n' "$save" | grep -qE "github\\.event\\.repository\\.default_branch"
+  printf '%s\n' "$save" | grep -qE '^          name: demand-radar-state$'
+  printf '%s\n' "$save" | grep -qE 'pocs/demand-radar/output/records\.jsonl'
+  printf '%s\n' "$save" | grep -qE '^          retention-days: 90$'
+}
+
+@test "the digest and deep-dive briefs ship in the artifact and on the Pages site" {
+  upload="$(_step_block refresh "Upload data + built dashboard")"
+  printf '%s\n' "$upload" | grep -qE 'pocs/demand-radar/output/weekly-digest\.md'
+  printf '%s\n' "$upload" | grep -qE 'pocs/demand-radar/output/deepdive/'
+  stage="$(_step_block refresh "Stage the dashboard for GitHub Pages")"
+  printf '%s\n' "$stage" | grep -qE 'weekly-digest\.md _site/demand-radar/output/'
+  printf '%s\n' "$stage" | grep -qE '_site/demand-radar/output/deepdive/'
+}
+
+@test "the analyst job has a read-only token and no Discussions scope" {
+  [ -n "$ANALYST" ]
+  [ "$(_perms "$ANALYST")" = "contents: read " ]
+  printf '%s\n' "$ANALYST" | grep -qE '^        uses: anthropics/claude-code-action@'
+  # Bash is limited to cat, jq and the citation gate — never a bare `Bash`
+  printf '%s\n' "$ANALYST" | grep -qF 'Bash(python3 pocs/demand-radar/analyst_check.py)'
+  if printf '%s\n' "$ANALYST" | grep -qE 'allowedTools.*[ ,"]Bash[ ,"]'; then false; fi
+  printf '%s\n' "$ANALYST" | grep -qE 'prompts/weekly-signals-analyst\.md'
+  if printf '%s\n' "$ANALYST" | grep -qE 'post_signals\.py'; then false; fi
+}
+
+@test "the analyst job runs only after a default-branch run that wrote a digest" {
+  cond="$(printf '%s\n' "$ANALYST" | grep -E '^    if: ')"
+  printf '%s\n' "$cond" | grep -qE "needs\\.refresh\\.outputs\\.digest == 'true'"
+  printf '%s\n' "$cond" | grep -qE "github\\.event\\.repository\\.default_branch"
+}
+
+@test "only post-signals holds discussions: write, and it gates before posting" {
+  [ "$(grep -cE '^\s+discussions: write' "$DR_YML")" -eq 1 ]
+  [ "$(_perms "$POST")" = "contents: read discussions: write " ]
+  if printf '%s\n' "$POST" | grep -qE 'claude-code-action'; then false; fi
+  gate_line="$(printf '%s\n' "$POST" | grep -nE 'run: python3 pocs/demand-radar/analyst_check\.py' | cut -d: -f1)"
+  post_line="$(printf '%s\n' "$POST" | grep -nE 'run: python3 pocs/demand-radar/post_signals\.py' | cut -d: -f1)"
+  [ -n "$gate_line" ] && [ -n "$post_line" ]
+  [ "$gate_line" -lt "$post_line" ]
+}
+
+@test "post-signals waits for a drafted comment from the default branch" {
+  cond="$(printf '%s\n' "$POST" | grep -E '^    if: ')"
+  printf '%s\n' "$cond" | grep -qE "needs\\.analyst\\.outputs\\.drafted == 'true'"
+  printf '%s\n' "$cond" | grep -qE "github\\.event\\.repository\\.default_branch"
 }

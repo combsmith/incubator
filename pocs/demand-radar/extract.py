@@ -220,6 +220,9 @@ def to_record(group, term, signal, captured_at):
         "vertical_dynamics": group.get("vertical_dynamics"),
         "discovery_channel": group.get("discovery_channel"),
         "captured_at": captured_at,
+        # the day this opportunity first entered the records (extract never re-scores, so
+        # this is set once); the board's "New this week" filter keys on it
+        "first_seen": captured_at[:10],
         "gap": {"gap_type": signal["gap_type"]},
         "demand": {
             "app_store_volume": None,

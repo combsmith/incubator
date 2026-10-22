@@ -14,3 +14,9 @@ def cat_pattern(terms):
         right = r"\b" if term[-1:].isalnum() else ""
         parts.append(left + re.escape(term) + right)
     return re.compile("|".join(parts))
+
+
+def slug(text):
+    """File-name slug for a keyword: lowercase alphanumeric runs joined by '-' (the name a
+    deep-dive brief is written under, so the board and the digest can link to it)."""
+    return re.sub(r"[^a-z0-9]+", "-", text.lower()).strip("-")
