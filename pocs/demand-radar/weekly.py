@@ -177,7 +177,10 @@ def deep_dives(n=3, rate=18, data_path=DATA_PATH, written=None):
     rows = _read_json(data_path, [])
     todo, slugs = [], set()
     for r in rows:
-        s = slug(r["kw"])
+        kw = r.get("kw")
+        if not kw:
+            continue
+        s = slug(kw)
         if r.get("new") and not r.get("dd") and s not in slugs:
             todo.append(r)
             slugs.add(s)
@@ -185,14 +188,17 @@ def deep_dives(n=3, rate=18, data_path=DATA_PATH, written=None):
             break
     failed = []
     for r in todo:
+        kw = r.get("kw")
+        if not kw:
+            continue
         try:
-            deep_dive.run(r["kw"], rate=rate)
+            deep_dive.run(kw, rate=rate)
         except Exception as e:  # noqa: BLE001 — network/throttle: report it, keep going
-            print(f"  ! deep dive failed for {r['kw']!r}: {e}", flush=True)
-            failed.append(r["kw"])
+            print(f"  ! deep dive failed for {kw!r}: {e}", flush=True)
+            failed.append(kw)
             continue
         written.append(
-            {"kw": r["kw"], "vert": r.get("vert"), "slug": slug(r["kw"]), "path": f"deepdive/{slug(r['kw'])}.md"}
+            {"kw": kw, "vert": r.get("vert"), "slug": slug(kw), "path": f"deepdive/{slug(kw)}.md"}
         )
     if failed:
         raise StageError(f"deep dive failed for: {', '.join(failed)}")
