@@ -120,9 +120,11 @@ BUDGET = {"youtube": 90, "stackexchange": 280, "hackernews": 10_000, "reddit": 9
 def hn_mentions(q):
     url = f"https://hn.algolia.com/api/v1/search?query={urllib.parse.quote(q)}&hitsPerPage=1"
     req = urllib.request.Request(url, headers={"User-Agent": UA})
+    d = json.loads(urllib.request.urlopen(req, timeout=20).read())
+    mentions = int(d.get("nbHits", 0))
     return {
         "source": "hackernews",
-        "mentions": json.loads(urllib.request.urlopen(req, timeout=20).read()).get("nbHits", 0),
+        "mentions": mentions,
         "query": q,
     }
 
@@ -135,10 +137,12 @@ def se_mentions(q, site):
         "https://api.stackexchange.com/2.3/search/advanced?" + params, headers={"User-Agent": UA}
     )
     d = json.loads(urllib.request.urlopen(req, timeout=20).read())
+    total = d.get("total")
+    mentions = int(total) if total is not None else 0
     return {
         "source": "stackexchange",
         "site": site,
-        "mentions": d.get("total"),
+        "mentions": mentions,
         "quota_remaining": d.get("quota_remaining"),
         "query": q,
     }
