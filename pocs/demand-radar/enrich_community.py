@@ -199,7 +199,7 @@ def reddit_token(cid, secret):
         headers={"User-Agent": UA, "Authorization": f"Basic {auth}"},
     )
     opener = urllib.request.build_opener(HTTPSOnlyRedirectHandler())
-    return json.loads(opener.open(req, timeout=20).read())["access_token"]
+    return json.loads(opener.open(req, timeout=20).read()).get("access_token", "")
 
 
 def reddit_mentions(q, token):
@@ -331,10 +331,13 @@ def run(inp=IN_PATH, out=OUT_PATH, source="", max_n=300, sleep=0.25, only=None):
     changed = []
     for i, r in enumerate(targets):
         cm = fetch_for(r, source or None, budget_left, rtoken, dead)
+        if "demand" not in r:
+            r["demand"] = {}
         r["demand"]["community_metric"] = cm
         nv, note = recompute(r, cm)
-        if nv != r["verdict_heuristic"]:
-            changed.append((r["canonical_query"], r["verdict_heuristic"], nv, cm.get("mentions"), cm.get("source")))
+        old_verdict = r.get("verdict_heuristic")
+        if nv != old_verdict:
+            changed.append((r.get("canonical_query", ""), old_verdict, nv, cm.get("mentions"), cm.get("source")))
             r["verdict_heuristic"] = nv
             r["corroboration_count"] = 2
             r["community_note"] = note
@@ -342,7 +345,7 @@ def run(inp=IN_PATH, out=OUT_PATH, source="", max_n=300, sleep=0.25, only=None):
             print(f"  {i + 1}/{len(targets)}  budgets={budget_left}", flush=True)
         time.sleep(sleep)
 
-    if targets and all(r["demand"]["community_metric"].get("mentions") is None for r in targets):
+    if targets and all((r.get("demand") or {}).get("community_metric", {}).get("mentions") is None for r in targets):
         # Every source was exhausted or unreachable. Fail the stage and leave the previous
         # enriched file alone rather than overwrite real metrics with an all-empty pass.
         raise StageError(
