@@ -32,8 +32,10 @@ MAX_IDEAS = 3
 MAX_CHARS = 6000
 NO_IDEAS = "No idea cleared the bar this week."
 TITLE_PREFIX = "## DemandRadar — weekly signals"
-RECORD_RE = re.compile(r"\[record:\s*([a-z0-9-]+)\s*/\s*([^\]]+?)\s*\]", re.I)
-DEEPDIVE_RE = re.compile(r"\[deep-dive:\s*([^\]]+?)\s*\]", re.I)
+# Linear-time patterns (no nested or adjacent optional whitespace around a lazy group):
+# capture the raw bracket contents and trim in code instead.
+RECORD_RE = re.compile(r"\[record:([^\]/]*)/([^\]]*)\]", re.I)
+DEEPDIVE_RE = re.compile(r"\[deep-dive:([^\]]*)\]", re.I)
 SLUG_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 MENTION_RE = re.compile(r"(?<![\w.])@[A-Za-z0-9]")
 
@@ -72,8 +74,8 @@ def check(text, data_path=DATA_PATH, deepdive_dir=DEEPDIVE_DIR):
             continue
         if not line or line == NO_IDEAS or line == "---":
             continue
-        records = RECORD_RE.findall(line)
-        dives = DEEPDIVE_RE.findall(line)
+        records = [(v.strip(), k.strip()) for v, k in RECORD_RE.findall(line)]
+        dives = [d.strip() for d in DEEPDIVE_RE.findall(line)]
         if not records and not dives:
             errs.append(f"line {n}: no citation — every claim cites [record: …] or [deep-dive: …]: {line[:80]}")
         for vert, kw in records:

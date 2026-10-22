@@ -49,8 +49,10 @@ class TestRotation:
     VERTS = [f"v{i}" for i in range(25)]
 
     def test_three_verticals_per_week_deterministic(self):
-        assert weekly.rotation(self.VERTS, MONDAY) == weekly.rotation(self.VERTS, MONDAY)
-        assert len(weekly.rotation(self.VERTS, MONDAY)) == 3
+        first = weekly.rotation(self.VERTS, MONDAY)
+        again = weekly.rotation(list(self.VERTS), MONDAY)
+        assert first == again
+        assert len(first) == 3
 
     def test_the_whole_iso_week_shares_one_rotation(self):
         sunday = date(2026, 11, 1)
