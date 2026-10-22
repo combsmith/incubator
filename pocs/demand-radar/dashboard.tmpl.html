@@ -124,6 +124,12 @@
   .toggle .dot{width:8px;height:8px;border-radius:50%;background:var(--line);flex:none}
   .toggle.on{color:var(--ink);border-color:var(--info)}
   .toggle.on .dot{background:var(--info)}
+  /* control tooltips: one shared bubble, inverted ink/ground so it reads in both themes */
+  .tip{position:fixed;z-index:40;max-width:min(300px,calc(100vw - 16px));padding:8px 10px;border-radius:8px;
+    background:var(--ink);color:var(--ground);font-family:var(--sans);font-size:12px;line-height:1.45;
+    box-shadow:var(--shadow);pointer-events:none}
+  .tip[hidden]{display:none}
+  .ctrl-in button[aria-describedby]{-webkit-touch-callout:none;-webkit-user-select:none;user-select:none}
   .count{margin-left:auto;font-family:var(--mono);font-size:11px;color:var(--ink-2);white-space:nowrap}
   .count b{color:var(--ink)}
 
@@ -248,25 +254,47 @@
         <input id="q" type="search" aria-label="Search ideas and verticals" placeholder="Search ideas, verticals…" autocomplete="off">
       </label>
       <div class="seg" id="ch" data-key="ch">
-        <button class="on" data-v="">Both</button><button data-v="app-store">App&nbsp;Store</button><button data-v="community">Community</button>
+        <button class="on" data-v="" aria-describedby="tip-ch-both">Both</button><button data-v="app-store" aria-describedby="tip-ch-app-store">App&nbsp;Store</button><button data-v="community" aria-describedby="tip-ch-community">Community</button>
       </div>
       <div class="seg" id="gap" data-key="gap">
-        <button class="on" data-v="">Any&nbsp;gap</button><button data-v="nascent">Emerging</button><button data-v="stale">Aging</button><button data-v="thin">Weak</button><button data-v="absent-in-store">Unmatched</button>
+        <button class="on" data-v="" aria-describedby="tip-gap-any">Any&nbsp;gap</button><button data-v="nascent" aria-describedby="tip-gap-nascent">Emerging</button><button data-v="stale" aria-describedby="tip-gap-stale">Aging</button><button data-v="thin" aria-describedby="tip-gap-thin">Weak</button><button data-v="absent-in-store" aria-describedby="tip-gap-absent">Unmatched</button>
       </div>
-      <button class="toggle" id="tMA"><span class="dot"></span>Needs MobileAction</button>
+      <button class="toggle" id="tMA" aria-describedby="tip-ma"><span class="dot"></span>Needs MobileAction</button>
       <div class="seg" id="lens" data-key="lens">
-        <button class="on" data-v="">Both lenses</button><button data-v="gap">Gaps</button><button class="lens" data-v="disrupt">🎯 Disrupt</button>
+        <button class="on" data-v="" aria-describedby="tip-lens-both">Both lenses</button><button data-v="gap" aria-describedby="tip-lens-gap">Gaps</button><button class="lens" data-v="disrupt" aria-describedby="tip-lens-disrupt">🎯 Disrupt</button>
       </div>
       <div class="seg" id="rate" data-key="rate">
-        <button class="on" data-v="">All</button><button data-v="star">★ Shortlist</button><button data-v="maybe">~ Maybe</button><button data-v="none">Unrated</button>
+        <button class="on" data-v="" aria-describedby="tip-rate">All</button><button data-v="star" aria-describedby="tip-rate">★ Shortlist</button><button data-v="maybe" aria-describedby="tip-rate">~ Maybe</button><button data-v="none" aria-describedby="tip-rate">Unrated</button>
       </div>
-      <select class="sort" id="sort" aria-label="Sort order">
-        <option value="score">Sort: Signal score</option>
-        <option value="dscore">Sort: Disruption score</option>
-        <option value="comm">Sort: Community</option>
-        <option value="vert">Sort: Vertical</option>
-        <option value="kw">Sort: A–Z</option>
+      <select class="sort" id="sort" aria-label="Sort order" aria-describedby="tip-sort-score">
+        <option value="score" data-tip="tip-sort-score">Sort: Signal score</option>
+        <option value="dscore" data-tip="tip-sort-dscore">Sort: Disruption score</option>
+        <option value="comm" data-tip="tip-sort-comm">Sort: Community</option>
+        <option value="vert" data-tip="tip-sort-vert">Sort: Vertical</option>
+        <option value="kw" data-tip="tip-sort-kw">Sort: A–Z</option>
       </select>
+      <!-- Tooltip copy for the controls above: referenced by aria-describedby (screen readers)
+           and shown by the shared #tip bubble on hover, focus and touch long-press. -->
+      <div id="tips" hidden>
+        <span id="tip-ch-both">Show ideas from both discovery channels.</span>
+        <span id="tip-ch-app-store">Ideas people find by searching the App Store; App Store search volume is a valid demand measure for these.</span>
+        <span id="tip-ch-community">Ideas people find through Reddit, Discord, YouTube or forums; keyword volume is near zero by design, so demand is the community metric instead.</span>
+        <span id="tip-gap-any">Every supply gap type, including low-rated incumbents (best credible app under 3.5★, low-quality), which have no button of their own.</span>
+        <span id="tip-gap-nascent">Relevant apps exist but none is credible yet (nascent).</span>
+        <span id="tip-gap-stale">The freshest credible app has not been updated in over a year (stale).</span>
+        <span id="tip-gap-thin">Some credible apps exist but users are not well served (thin); a watch item more than a gap.</span>
+        <span id="tip-gap-absent">No relevant app found in the store (absent-in-store). Often a search-relevance miss, so verify outside the store before trusting it.</span>
+        <span id="tip-ma">App Store ideas that have no MobileAction search-volume label yet; demand is unconfirmed until one is pulled.</span>
+        <span id="tip-lens-both">Show gap and disruption opportunities together.</span>
+        <span id="tip-lens-gap">Build where supply is absent or weak.</span>
+        <span id="tip-lens-disrupt">Proven markets whose leader is beatable: rated low, or well-rated but resented in 1–3★ reviews for paywalls, ads or getting worse.</span>
+        <span id="tip-rate">Filter by your own ratings, stored in this browser.</span>
+        <span id="tip-sort-score">Gap severity + supply scarcity + community corroboration + autocomplete demand, adjusted by MobileAction volume where labelled.</span>
+        <span id="tip-sort-dscore">Strength of the beatable-leader signal in a proven market: market size × how low-rated or resented the leader is.</span>
+        <span id="tip-sort-comm">The community metric from the record's source (Hacker News / StackExchange / Reddit posts, or YouTube views); units differ by source, so treat it as directional.</span>
+        <span id="tip-sort-vert">Group by vertical, strongest signal first within each.</span>
+        <span id="tip-sort-kw">Alphabetical by idea.</span>
+      </div>
       <div class="count" id="count"></div>
     </div>
   </section>
@@ -283,6 +311,7 @@
       <p style="margin:6px 0 0" class="hint">Snapshot: 834 candidates of 1,250 scored across 25 verticals · supply = iTunes Search API · demand = DuckDuckGo autocomplete + community · ratings saved in this browser (Export to keep them).</p>
     </div>
   </footer>
+  <div class="tip" id="tip" role="tooltip" hidden></div>
 </div>
 
 <script>
@@ -477,7 +506,7 @@ document.querySelectorAll(".seg").forEach(seg=>{
   });
 });
 $("#tMA").addEventListener("click", e=>{ state.ma=!state.ma; e.currentTarget.classList.toggle("on",state.ma); state.focus=-1; render(); });
-$("#sort").addEventListener("change", e=>{ state.sort=e.target.value; state.focus=-1; render(); });
+$("#sort").addEventListener("change", e=>{ state.sort=e.target.value; state.focus=-1; render(); syncSortTip(); });
 let qt; $("#q").addEventListener("input", e=>{ clearTimeout(qt); qt=setTimeout(()=>{ state.q=e.target.value.trim(); state.focus=-1; render(); },140); });
 $("#bars").addEventListener("click", e=>{ const b=e.target.closest(".vbar"); if(b){ state.vert = state.vert===b.dataset.v?"":b.dataset.v; state.focus=-1; verticalBars(); render(); } });
 $("#bars").addEventListener("keydown", e=>{ if((e.key==="Enter"||e.key===" ")&&e.target.closest(".vbar")){ e.preventDefault(); e.target.click(); }});
@@ -485,6 +514,60 @@ $("#clear").addEventListener("click", ()=>{ Object.assign(state,{q:"",ch:"",gap:
   $("#q").value=""; $("#tMA").classList.remove("on");
   document.querySelectorAll(".seg").forEach(s=>s.querySelectorAll("button").forEach((b,i)=>b.classList.toggle("on",i===0)));
   verticalBars(); render(); });
+
+/* control tooltips: the copy lives in #tips (also read by screen readers via aria-describedby);
+   the bubble shows it on hover, keyboard focus and a touch long-press */
+const tipEl = $("#tip"), ctrlIn = $(".ctrl-in"), TIP_SEL = "[aria-describedby]";
+const tipText = id => { const t = id && document.getElementById(id); return t ? t.textContent.trim() : ""; };
+function showTip(el){
+  const text = tipText(el.getAttribute("aria-describedby")); if(!text){ hideTip(); return; }
+  tipEl.textContent = text; tipEl.style.left = tipEl.style.top = "0px"; tipEl.hidden = false; tipOwner = el;  // measure unconstrained
+  const r = el.getBoundingClientRect(), w = tipEl.offsetWidth, h = tipEl.offsetHeight;
+  const left = Math.min(Math.max(8, r.left + r.width/2 - w/2), window.innerWidth - w - 8);
+  const top = r.bottom + 8 + h > window.innerHeight ? r.top - h - 8 : r.bottom + 8;
+  tipEl.style.left = Math.max(8, left)+"px"; tipEl.style.top = Math.max(8, top)+"px";
+}
+let tipOwner = null;
+function hideTip(){ tipEl.hidden = true; tipOwner = null; }
+function syncSortTip(){
+  const sel = $("#sort"), opt = sel.options[sel.selectedIndex];
+  sel.setAttribute("aria-describedby", opt.dataset.tip);
+  if(document.activeElement===sel && !tipEl.hidden) showTip(sel);
+}
+document.querySelectorAll("#sort option").forEach(o=>{ o.title = tipText(o.dataset.tip); });
+const isFocusVisible = el => { try{ return el.matches(":focus-visible"); }catch(e){ return true; } };
+let lastTouch = 0, pressT = null, longPressed = false;
+ctrlIn.addEventListener("mouseover", e=>{
+  if(Date.now()-lastTouch < 800) return;  // ignore the mouse events a tap emulates
+  const el = e.target.closest(TIP_SEL); if(el) showTip(el);
+});
+// the tooltip belongs to one control (tipOwner); it only goes away when that control is neither hovered nor keyboard-focused
+const isHovered = el => { try{ return el.matches(":hover"); }catch(e){ return false; } };
+const isFocused = el => document.activeElement===el && isFocusVisible(el);
+ctrlIn.addEventListener("mouseout", e=>{
+  const el = e.target.closest(TIP_SEL);
+  if(el && !el.contains(e.relatedTarget) && el===tipOwner && !isFocused(el)) hideTip();
+});
+ctrlIn.addEventListener("focusin", e=>{ const el = e.target.closest(TIP_SEL); if(el && isFocusVisible(el)) showTip(el); });
+ctrlIn.addEventListener("focusout", e=>{
+  const el = e.target.closest(TIP_SEL);
+  if(el && el===tipOwner && !isHovered(el)) hideTip();
+});
+ctrlIn.addEventListener("touchstart", e=>{
+  lastTouch = Date.now(); longPressed = false; hideTip(); clearTimeout(pressT);
+  const el = e.target.closest(TIP_SEL);
+  if(el) pressT = setTimeout(()=>{ longPressed = true; showTip(el); }, 500);
+}, {passive:true});
+// touchend keeps a completed long-press tooltip readable; a moved or canceled press dismisses it and resets the press state
+ctrlIn.addEventListener("touchend", ()=>{ lastTouch = Date.now(); clearTimeout(pressT); }, {passive:true});
+["touchmove","touchcancel"].forEach(t=>ctrlIn.addEventListener(t, ()=>{ lastTouch = Date.now(); clearTimeout(pressT); longPressed = false; hideTip(); }, {passive:true}));
+// a long-press only explains the control: swallow the click (and context menu) it would otherwise trigger
+ctrlIn.addEventListener("click", e=>{ if(longPressed){ longPressed = false; e.preventDefault(); e.stopPropagation(); } }, true);
+ctrlIn.addEventListener("contextmenu", e=>{ if(longPressed) e.preventDefault(); });
+document.addEventListener("keydown", e=>{ if(e.key==="Escape") hideTip(); });
+document.addEventListener("touchstart", e=>{ if(!ctrlIn.contains(e.target)) hideTip(); }, {passive:true});
+window.addEventListener("scroll", hideTip, {passive:true});
+window.addEventListener("resize", hideTip);
 
 /* keep the sticky controls bar below the header, whatever height it wraps to */
 const barEl = document.querySelector("header.bar");
