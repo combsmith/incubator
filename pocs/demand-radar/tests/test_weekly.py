@@ -649,6 +649,25 @@ class TestAnalystCheck:
         text = "".join(idea.format(n=i) for i in range(4))
         assert any("at most 3" in e for e in self.check(data, text))
 
+    def test_prefix_extended_headings_are_counted_as_ideas(self, data):
+        """Headings that extend TITLE_PREFIX but are not the exact date-based title are counted."""
+        text = """## DemandRadar — weekly signals · 2026-10-26
+
+## DemandRadar — weekly signals extended
+- gap [record: pets / dog walk log]
+
+## DemandRadar — weekly signals bonus round
+- gap [record: travel / trip planner]
+
+## DemandRadar — weekly signals part 2
+- gap [record: pets / dog walk log]
+
+## DemandRadar — weekly signals and more
+- gap [record: travel / trip planner]
+"""
+        errs = self.check(data, text)
+        assert any("at most 3" in e for e in errs), f"Expected 'at most 3' error but got: {errs}"
+
     def test_an_uncited_claim_fails(self, data):
         text = GOOD_COMMENT + "- Huge market, millions of users\n"
         assert any("no citation" in e for e in self.check(data, text))
