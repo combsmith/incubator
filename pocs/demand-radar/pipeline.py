@@ -16,8 +16,15 @@ Presets:
            scores priority keywords that have NO record yet (it never re-scores), so once
            the priority set is fully covered a refresh updates community metrics and the
            exports only. To re-score supply, remove those rows from output/records.jsonl.
+  weekly   the scheduled research session (issue #186) — brings in NEW ideas each week:
+           generate -> weekly slice (pending user-phrase seeds + never-scored keywords of
+           3 rotated verticals) -> broad(slice, capped) -> priority(slice) -> extract ->
+           stamp first_seen -> enrich(slice) -> resented scan (newly proven markets only,
+           capped + paced) -> export -> deep dives (top --deep-dives NEW entries) -> export
+           -> rank -> weekly digest -> build. Every iTunes stage stays at <= --rate/min.
   export   re-derive the dashboard only — export -> build. No network.
 
+  python pipeline.py --preset weekly --max 240 --rate 18
   python pipeline.py --preset refresh --max 240 --rate 18
   python pipeline.py --preset full --per-vertical 50
 
@@ -29,15 +36,19 @@ import argparse
 import os
 import sys
 import traceback
+from datetime import datetime, timezone
 
 import broad_pass
+import digest
 import enrich_community
 import export_dashboard
 import extract
 import generate_keywords
 import rank_starter_list
+import records
 import resented_giants
 import select_priority
+import weekly
 from errors import StageError
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -45,6 +56,13 @@ OUT = os.path.join(HERE, "output")
 TMPL = os.path.join(HERE, "dashboard.tmpl.html")
 DATA = os.path.join(OUT, "dashboard-data.json")
 HTML = os.path.join(HERE, "dashboard.html")
+# resented_giants sleeps this long around each leader's 2-3 iTunes calls: ~19 calls/min,
+# inside the ~20/min limit (its 2.2 s default is for a manual, one-off scan).
+RESENTED_SLEEP = 4.5
+
+
+def _today():
+    return datetime.now(timezone.utc).date()
 
 
 def run(label, fn, fatal):
@@ -91,16 +109,56 @@ def build_dashboard(tmpl_path=TMPL, data_path=DATA, html_path=HTML):
     return html_path
 
 
+def weekly_stages(stage, a, today, info, dives):
+    """The weekly preset's discovery stages, up to its first export (the common tail —
+    export, rank, digest, build — runs in main). Network stages are non-fatal as elsewhere:
+    a 403 storm aborts extract silently (its breaker) and the run finishes DEGRADED."""
+    stage("generate keywords", generate_keywords.run, fatal=True)
+    stage("weekly slice", lambda: info.update(weekly.select_slice(today, broad_cap=weekly.BROAD_CAP)), fatal=True)
+    stage(
+        "broad demand (slice)",
+        lambda: broad_pass.run(inp=weekly.SLICE_PATH, workers=2, engine=a.engine),
+        fatal=False,
+    )
+    stage("select priority (slice)", lambda: weekly.pick_priority(per_vertical=a.per_vertical), fatal=True)
+    stage(
+        "supply (iTunes)",
+        lambda: extract.run(keywords_path=weekly.WEEKLY_PATH, workers=2, rate=a.rate, max_n=a.max),
+        fatal=False,
+    )
+    stage("stamp first_seen", lambda: records.stamp_first_seen(extract.OUT_PATH, today), fatal=True)
+    stage(
+        "community enrich (slice)",
+        lambda: enrich_community.run(
+            source=enrich_community.default_source(), max_n=a.max, only=weekly.priority_keys()
+        ),
+        fatal=False,
+    )
+    # resented_giants skips every leader it already scanned, so this covers exactly the
+    # markets that became proven since the last scan (plus earlier fetch failures).
+    stage(
+        "resented-giant scan (new proven markets)",
+        lambda: resented_giants.run(max_n=a.resented_max, sleep=RESENTED_SLEEP),
+        fatal=False,
+    )
+    # deep dives pick from the exported board (new rows, by score), then the common tail
+    # re-exports so the board links the briefs just written
+    stage("export dashboard data", export_dashboard.main, fatal=True)
+    stage("deep dives", lambda: weekly.deep_dives(n=a.deep_dives, rate=a.rate, written=dives), fatal=False)
+
+
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--preset", choices=["full", "refresh", "export"], default="refresh")
+    ap.add_argument("--preset", choices=["full", "refresh", "weekly", "export"], default="refresh")
     ap.add_argument("--max", type=int, default=240, help="extract/enrich batch cap (0 = no cap)")
     ap.add_argument("--rate", type=float, default=18, help="iTunes calls/min")
     ap.add_argument("--per-vertical", type=int, default=50)
     ap.add_argument("--engine", default="ddg", choices=list(broad_pass.ENGINES), help="broad autocomplete engine")
+    ap.add_argument("--deep-dives", type=int, default=3, help="weekly: briefs for the top N new entries")
+    ap.add_argument("--resented-max", type=int, default=40, help="weekly: newly proven leaders scanned per run")
     a = ap.parse_args()
-    if a.max < 0 or a.per_vertical < 0 or a.rate <= 0:
-        ap.error("--max and --per-vertical must be >= 0, and --rate must be > 0")
+    if a.max < 0 or a.per_vertical < 0 or a.rate <= 0 or a.deep_dives < 0 or a.resented_max < 0:
+        ap.error("--max, --per-vertical, --deep-dives and --resented-max must be >= 0, and --rate must be > 0")
 
     degraded = []  # non-fatal stages that failed — the run ships but must NOT report clean success
 
@@ -111,6 +169,13 @@ def main():
     if a.preset == "full":
         stage("generate keywords", generate_keywords.run, fatal=True)
         stage("broad demand (autocomplete)", lambda: broad_pass.run(workers=2, engine=a.engine), fatal=False)
+
+    if a.preset == "weekly":
+        today = _today()
+        before = weekly.snapshot()
+        info = {}
+        dives = []
+        weekly_stages(stage, a, today, info, dives)
 
     if a.preset in ("full", "refresh"):
         stage("select priority", lambda: select_priority.run(per_vertical=a.per_vertical), fatal=True)
@@ -131,6 +196,17 @@ def main():
     # Refresh the ranked starter list too — it's an uploaded deliverable, so exporting the
     # dashboard data without re-ranking would ship a stale starter-list.md.
     stage("rank starter list", rank_starter_list.main, fatal=True)
+    if a.preset == "weekly":
+        info.update(
+            week=weekly.iso_week(today),
+            scored=max(0, weekly.count_records() - before.get("records", 0)),
+            youtube_key=bool(os.environ.get("YOUTUBE_API_KEY")),
+        )
+        stage(
+            "weekly digest",
+            lambda: digest.run(today=today, info=info, before=before, dives=dives, degraded=list(degraded)),
+            fatal=False,
+        )
 
     print("\n\033[1m━━ build dashboard.html ━━\033[0m", flush=True)
     build_dashboard()

@@ -5,6 +5,13 @@ output/*.log
 output/*.v1.jsonl
 output/keywords.jsonl
 dashboard.html
+# per-run weekly outputs (issue #186): rebuilt every run, shipped as build artifacts / on
+# Pages; week-to-week state travels in the demand-radar-state artifact, not in git
+output/weekly-digest.md
+output/signals-comment.md
+output/keywords.weekly.jsonl
+output/keywords.weekly-slice.jsonl
+output/*.tmp
 # Python bytecode & test cache (see combsmith/.github#1081)
 __pycache__/
 *.py[cod]

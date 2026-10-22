@@ -31,6 +31,7 @@ import urllib.parse
 import urllib.request
 
 from errors import StageError, run_cli
+from records import merge as merge_records
 
 UA = "DemandRadar-spike/0.4 (+combsmith/incubator; research)"
 
@@ -119,9 +120,11 @@ BUDGET = {"youtube": 90, "stackexchange": 280, "hackernews": 10_000, "reddit": 9
 def hn_mentions(q):
     url = f"https://hn.algolia.com/api/v1/search?query={urllib.parse.quote(q)}&hitsPerPage=1"
     req = urllib.request.Request(url, headers={"User-Agent": UA})
+    d = json.loads(urllib.request.urlopen(req, timeout=20).read())
+    mentions = int(d.get("nbHits", 0))
     return {
         "source": "hackernews",
-        "mentions": json.loads(urllib.request.urlopen(req, timeout=20).read()).get("nbHits", 0),
+        "mentions": mentions,
         "query": q,
     }
 
@@ -134,10 +137,12 @@ def se_mentions(q, site):
         "https://api.stackexchange.com/2.3/search/advanced?" + params, headers={"User-Agent": UA}
     )
     d = json.loads(urllib.request.urlopen(req, timeout=20).read())
+    total = d.get("total")
+    mentions = int(total) if total is not None else 0
     return {
         "source": "stackexchange",
         "site": site,
-        "mentions": d.get("total"),
+        "mentions": mentions,
         "quota_remaining": d.get("quota_remaining"),
         "query": q,
     }
@@ -198,7 +203,7 @@ def reddit_token(cid, secret):
         headers={"User-Agent": UA, "Authorization": f"Basic {auth}"},
     )
     opener = urllib.request.build_opener(HTTPSOnlyRedirectHandler())
-    return json.loads(opener.open(req, timeout=20).read())["access_token"]
+    return json.loads(opener.open(req, timeout=20).read()).get("access_token", "")
 
 
 def reddit_mentions(q, token):
@@ -250,12 +255,12 @@ def fetch_for(record, forced, budget_left, rtoken, dead):
 
 def recompute(record, cm):
     if record.get("discovery_channel") != "community":
-        return record["verdict_heuristic"], None
-    v = record["verdict_heuristic"]
+        return record.get("verdict_heuristic"), None
+    v = record.get("verdict_heuristic", "")
     if not v.startswith("CANDIDATE") or cm.get("mentions") is None:
         return v, None
     corr, thin = THRESHOLDS.get(cm.get("source", ""), (300, 50))
-    m = cm["mentions"]
+    m = cm.get("mentions")
     if m >= corr:
         return "CANDIDATE", "community-corroborated"
     if m < thin:
@@ -281,7 +286,11 @@ def default_source():
     return os.environ.get("DR_COMMUNITY_SOURCE", "")
 
 
-def run(inp=IN_PATH, out=OUT_PATH, source="", max_n=300, sleep=0.25):
+def run(inp=IN_PATH, out=OUT_PATH, source="", max_n=300, sleep=0.25, only=None):
+    """Enrich the top survivors. `only` (a set of (industry, canonical_query)) narrows the
+    targets to one slice — the weekly preset's new keywords — and then starts from the
+    current enriched copy of every record, so metrics from earlier runs are kept rather
+    than rewritten as empty."""
     # A forced source that cannot work would otherwise "succeed" with every target written
     # as source "none" — fail up front instead. (Auto-routing still just skips youtube.)
     if source and source not in BUDGET:
@@ -292,9 +301,14 @@ def run(inp=IN_PATH, out=OUT_PATH, source="", max_n=300, sleep=0.25):
     has_youtube_key = bool(os.environ.get("YOUTUBE_API_KEY"))
     if source == "youtube" and not has_youtube_key:
         raise StageError("Error: --source youtube requires YOUTUBE_API_KEY. Aborting instead of falling back.")
-    with open(inp, encoding="utf-8") as f:
-        records = [json.loads(line) for line in f]
+    if only is None:
+        with open(inp, encoding="utf-8") as f:
+            records = [json.loads(line) for line in f]
+    else:
+        records = merge_records(inp, out)
     survivors = [r for r in records if not r.get("verdict_heuristic", "").startswith("REJECT")]
+    if only is not None:
+        survivors = [r for r in survivors if (r.get("industry"), r.get("canonical_query")) in only]
     survivors.sort(key=supply_score, reverse=True)
     targets = survivors[:max_n] if max_n else survivors  # 0 = no cap (same meaning as extract --max)
     print(f"records={len(records)} survivors={len(survivors)} enriching_top={len(targets)}", flush=True)
@@ -321,10 +335,13 @@ def run(inp=IN_PATH, out=OUT_PATH, source="", max_n=300, sleep=0.25):
     changed = []
     for i, r in enumerate(targets):
         cm = fetch_for(r, source or None, budget_left, rtoken, dead)
+        if not isinstance(r.get("demand"), dict):
+            r["demand"] = {}
         r["demand"]["community_metric"] = cm
         nv, note = recompute(r, cm)
-        if nv != r["verdict_heuristic"]:
-            changed.append((r["canonical_query"], r["verdict_heuristic"], nv, cm.get("mentions"), cm.get("source")))
+        old_verdict = r.get("verdict_heuristic")
+        if nv != old_verdict:
+            changed.append((r.get("canonical_query", ""), old_verdict, nv, cm.get("mentions"), cm.get("source")))
             r["verdict_heuristic"] = nv
             r["corroboration_count"] = 2
             r["community_note"] = note
@@ -332,7 +349,7 @@ def run(inp=IN_PATH, out=OUT_PATH, source="", max_n=300, sleep=0.25):
             print(f"  {i + 1}/{len(targets)}  budgets={budget_left}", flush=True)
         time.sleep(sleep)
 
-    if targets and all(r["demand"]["community_metric"].get("mentions") is None for r in targets):
+    if targets and all((r.get("demand") or {}).get("community_metric", {}).get("mentions") is None for r in targets):
         # Every source was exhausted or unreachable. Fail the stage and leave the previous
         # enriched file alone rather than overwrite real metrics with an all-empty pass.
         raise StageError(

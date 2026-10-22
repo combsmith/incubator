@@ -9,6 +9,9 @@ supply pass; the point is broad, repeatable coverage so real gaps surface.
 
 Output: output/keywords.jsonl  (one {keyword, vertical, discovery_channel, ...} per line)
 
+Plus the curated "real user phrase" seeds in keyword-seeds.json (franchise / "X alternative"
+searches the grid can't produce, e.g. "minecraft world backup"), flagged `"seed": true`.
+
   python generate_keywords.py            # ~10k+ keywords across 25 verticals
   python generate_keywords.py --tools 20 # cap tool-types per domain
 """
@@ -147,13 +150,25 @@ VERTICALS = {
 # into open()/makedirs (path injection); callers that need another location (tests) pass
 # `out` to run() directly.
 OUT_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "output", "keywords.jsonl")
+SEEDS_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "keyword-seeds.json")
 
 
-def run(out=OUT_PATH, n_tools=len(TOOLS)):
+def load_seeds(path):
+    """{vertical: [phrase, ...]} from the curated seed file; {} when there is none."""
+    if not os.path.exists(path):
+        return {}
+    with open(path, encoding="utf-8") as f:
+        return json.load(f).get("seeds", {})
+
+
+def run(out=OUT_PATH, n_tools=len(TOOLS), seeds_path=SEEDS_PATH):
     if n_tools < 0:
         # TOOLS[:-n] would silently mean "all but the last n"
         raise StageError(f"--tools must be >= 0 (got {n_tools})")
     tools = TOOLS[:n_tools]
+    seeds = load_seeds(seeds_path)
+    for vert in sorted(set(seeds) - set(VERTICALS)):
+        print(f"  ! seeds for unknown vertical {vert!r} skipped (keyword-seeds.json)")
     os.makedirs(os.path.dirname(out) or ".", exist_ok=True)
     n = 0
     per_vertical = {}
@@ -176,6 +191,17 @@ def run(out=OUT_PATH, n_tools=len(TOOLS)):
                     }) + "\n")
                     n += 1
                     c += 1
+            for phrase in seeds.get(vert, []):
+                kw = phrase.strip().lower()
+                if not kw or kw in seen:
+                    continue
+                seen.add(kw)
+                f.write(json.dumps({
+                    "keyword": kw, "vertical": vert,
+                    "discovery_channel": channel, "vertical_dynamics": dyn, "seed": True,
+                }) + "\n")
+                n += 1
+                c += 1
             per_vertical[vert] = c
 
     print(f"Wrote {n} keywords across {len(VERTICALS)} verticals -> {out}")
