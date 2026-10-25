@@ -37,13 +37,24 @@ stubs: they pass out of the box and are tailored to each repo's language after c
 
 ## Local Dev Commands
 
-There is no install/build/dev-run step — the repo has no application dependencies.
+Run all local checks that mirror `.github/workflows/ci.yml` before pushing:
 
-Validation happens primarily via GitHub Actions in CI. To run the compliance regression tests
-locally:
-
-- Compliance tests: `bats tests/ci-secret-scan.bats`  ← requires `bats` installed locally
-- Workflow YAML validation: push to a branch and let CI run, or use `act` locally.
+- **Compliance regression tests (repo root):**
+  ```bash
+  python3 -m pip install -q pyyaml==6.0.2
+  bats tests/*.bats
+  ```
+- **DemandRadar lint, format, typecheck, unit tests, and coverage (`pocs/demand-radar`):**
+  ```bash
+  cd pocs/demand-radar
+  python3 -m pip install -q --only-binary :all: --require-hashes -r requirements-ci.txt
+  ruff check .
+  ruff format --check .
+  mypy --ignore-missing-imports .
+  python3 -m pytest tests/ -q --tb=short
+  python3 -m pytest tests/ --cov=. --cov-report=xml:coverage.xml --cov-report=term-missing --cov-fail-under=80
+  ```
+- **Workflow YAML validation:** push to a branch and let CI run, or use `act` locally.
 
 ## Required Environment Variables
 
@@ -66,7 +77,7 @@ No application secrets are needed for local work. In CI:
   These verify that workflow stubs carry required jobs/steps (e.g. the secret-scan job in `ci.yml`).
 - CI validation: GitHub Actions workflows are the primary verification mechanism — push to a
   branch and let the CI suite run. SonarCloud guards code quality (gated by `SONAR_TOKEN`).
-- No coverage threshold applies — there is no application code to cover.
+- Coverage threshold: `pocs/demand-radar` enforces an 80% coverage floor (`--cov-fail-under=80` in the `coverage` CI job); no coverage threshold applies to the top-level workflow/shell stubs.
 
 ## Repo-Specific Overrides
 
