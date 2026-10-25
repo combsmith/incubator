@@ -14,7 +14,7 @@ and are regenerated from there.
 
 - **Runtime:** None — this is a template/scaffold repo, not a deployable application.
 - **CI / config:** GitHub Actions workflow stubs (YAML) under `.github/workflows/`; Dependabot; SonarCloud.
-- **Docs:** Markdown (`AGENTS.md`, `CLAUDE.md`, `BOOTSTRAP.md`, `README.md`, `SECURITY.md`).
+- **Docs:** Markdown (`AGENTS.md`, `CLAUDE.md`, `BOOTSTRAP.md`, `README.md`).
 - **Tooling:** `bats` (compliance regression tests in `tests/`), `gh` CLI (workflow automation via CI).
 
 ## Project Structure
