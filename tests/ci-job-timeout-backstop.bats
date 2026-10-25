@@ -1,8 +1,8 @@
 #!/usr/bin/env bats
 # Compliance regression guard for ci.yml job-level timeout backstops (issue #190).
 #
-# Fleet Monitor issue #190 reported elevated p95 duration (412s, with individual runs
-# exceeding 9 minutes) alongside step failures in .github/workflows/ci.yml.
+# Fleet Monitor issue #190 reported elevated p95 duration (412s / ~6.9m, with
+# individual runs exceeding 9 minutes) alongside step failures in .github/workflows/ci.yml.
 #
 # Prior remediations (#124 network-fetch retries, #126 checkout retries) only retry
 # operations that *error* (`outcome == 'failure'`). Neither bounds an operation that
@@ -11,9 +11,13 @@
 # 6-hour default timeout expires.
 #
 # This guard pins the fix: every job in `.github/workflows/ci.yml` must declare an
-# explicit job-level `timeout-minutes` integer in [1, 60].
+# explicit job-level `timeout-minutes` integer in [10, 20] (above the ~6.9m observed
+# p95 floor and tightly bounded around the 15-minute backstop).
 
 CI_YML="${BATS_TEST_DIRNAME}/../.github/workflows/ci.yml"
+MIN_TIMEOUT_MINUTES=10
+MAX_TIMEOUT_MINUTES=20
+EXPECTED_CI_TIMEOUT_MINUTES=15
 
 # Extract the YAML slice for a single job under `jobs:` (2-space indent for job key,
 # 4-space indent for job-level attributes). Supports unquoted, double-quoted, and
@@ -47,10 +51,12 @@ list_jobs() {
 }
 
 # Assert that a given job block in a workflow file declares a 4-space job-level
-# `timeout-minutes: <int>` with 1 <= int <= 60.
+# `timeout-minutes: <int>` within [MIN_TIMEOUT_MINUTES, MAX_TIMEOUT_MINUTES],
+# and optionally equals an exact expected value ($3).
 assert_job_has_bounded_timeout() {
   local job="$1"
   local file="${2:-$CI_YML}"
+  local expected="${3:-}"
   local block line val
 
   block="$(job_block "$job" "$file")"
@@ -63,8 +69,12 @@ assert_job_has_bounded_timeout() {
   }
 
   val="$(printf '%s\n' "$line" | sed -E 's/^    timeout-minutes:[[:space:]]*([0-9]+).*$/\1/')"
-  if [ "$val" -lt 1 ] || [ "$val" -gt 60 ]; then
-    echo "job '$job' timeout-minutes=$val is outside bounded range [1, 60]"
+  if [ "$val" -lt "$MIN_TIMEOUT_MINUTES" ] || [ "$val" -gt "$MAX_TIMEOUT_MINUTES" ]; then
+    echo "job '$job' timeout-minutes=$val is outside bounded range [$MIN_TIMEOUT_MINUTES, $MAX_TIMEOUT_MINUTES]"
+    return 1
+  fi
+  if [ -n "$expected" ] && [ "$val" -ne "$expected" ]; then
+    echo "job '$job' timeout-minutes=$val does not match expected $expected"
     return 1
   fi
 }
@@ -78,28 +88,51 @@ assert_job_has_bounded_timeout() {
   printf '%s\n' "$jobs" | grep -qx 'coverage'
 }
 
-@test "build-and-test job declares a bounded job-level timeout-minutes (1..60)" {
-  assert_job_has_bounded_timeout "build-and-test"
+@test "build-and-test job declares timeout-minutes: 15 (within 10..20)" {
+  assert_job_has_bounded_timeout "build-and-test" "$CI_YML" "$EXPECTED_CI_TIMEOUT_MINUTES"
 }
 
-@test "secret-scan job declares a bounded job-level timeout-minutes (1..60)" {
-  assert_job_has_bounded_timeout "secret-scan"
+@test "secret-scan job declares timeout-minutes: 15 (within 10..20)" {
+  assert_job_has_bounded_timeout "secret-scan" "$CI_YML" "$EXPECTED_CI_TIMEOUT_MINUTES"
 }
 
-@test "coverage job declares a bounded job-level timeout-minutes (1..60)" {
-  assert_job_has_bounded_timeout "coverage"
+@test "coverage job declares timeout-minutes: 15 (within 10..20)" {
+  assert_job_has_bounded_timeout "coverage" "$CI_YML" "$EXPECTED_CI_TIMEOUT_MINUTES"
 }
 
-@test "every job discovered in ci.yml declares a bounded job-level timeout-minutes" {
+@test "every job discovered in ci.yml declares a bounded job-level timeout-minutes (10..20)" {
   local jobs job count=0
   jobs="$(list_jobs)"
   [ -n "$jobs" ]
   while IFS= read -r job; do
     [ -n "$job" ] || continue
     count=$((count + 1))
-    assert_job_has_bounded_timeout "$job"
+    assert_job_has_bounded_timeout "$job" "$CI_YML" "$EXPECTED_CI_TIMEOUT_MINUTES"
   done <<< "$jobs"
   [ "$count" -ge 3 ]
+}
+
+@test "assert_job_has_bounded_timeout rejects values below p95 (5m) or overly loose (60m)" {
+  local fixture="${BATS_TEST_TMPDIR}/out-of-range.yml"
+  cat > "$fixture" <<'EOF'
+name: fixture
+on: push
+jobs:
+  too-short:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - run: echo short
+  too-long:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - run: echo long
+EOF
+  run assert_job_has_bounded_timeout "too-short" "$fixture"
+  [ "$status" -ne 0 ]
+  run assert_job_has_bounded_timeout "too-long" "$fixture"
+  [ "$status" -ne 0 ]
 }
 
 @test "job_block does not treat a step-level timeout-minutes as satisfying the job-level backstop" {
@@ -112,7 +145,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: step with timeout
-        timeout-minutes: 5
+        timeout-minutes: 15
         run: echo hi
 EOF
   run assert_job_has_bounded_timeout "step-only-job" "$fixture"
@@ -163,13 +196,10 @@ EOF
   [ "$status" -ne 0 ]
 }
 
-@test "ci.yml remains valid YAML with no duplicate keys and integer timeout-minutes on all jobs" {
+@test "ci.yml remains valid YAML with no duplicate keys and integer timeout-minutes (10..20) on all jobs" {
   if ! command -v python3 >/dev/null 2>&1 || ! python3 -c "import yaml" >/dev/null 2>&1; then
-    if [ "${CI:-}" = "true" ]; then
-      echo "python3 with PyYAML is required when CI=true"
-      return 1
-    fi
-    skip "python3 with PyYAML not installed"
+    echo "python3 with PyYAML is required (run: python3 -m pip install -q pyyaml==6.0.2)"
+    return 1
   fi
   python3 - "$CI_YML" <<'PY'
 import sys
@@ -211,6 +241,6 @@ for name, spec in jobs.items():
     assert isinstance(tm, int) and not isinstance(tm, bool), (
         f"job {name!r} missing integer timeout-minutes: {tm!r}"
     )
-    assert 1 <= tm <= 60, f"job {name!r} timeout-minutes={tm} out of [1, 60]"
+    assert 10 <= tm <= 20, f"job {name!r} timeout-minutes={tm} out of [10, 20]"
 PY
 }

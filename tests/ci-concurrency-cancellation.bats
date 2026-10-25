@@ -10,12 +10,14 @@
 #     cancel-in-progress: true
 #
 # Embedding ${{ github.sha }} places every commit in a distinct concurrency group,
-# so `cancel-in-progress: true` never matches or cancels an earlier in-flight run on
-# the same branch/PR ref. Superseded runs continue executing to completion or failure
+# so `cancel-in-progress` never matches or cancels an earlier in-flight run on the
+# same branch/PR ref. Superseded runs continue executing to completion or failure
 # instead of cancelling cleanly.
 #
-# This guard pins the fix: ci.yml's concurrency group must be keyed by github.ref,
-# must NOT contain github.sha, and must keep cancel-in-progress: true.
+# This guard pins the fix: ci.yml's concurrency group must be `ci-${{ github.ref }}`
+# (keyed by github.ref and free of per-commit/per-run tokens like .sha, run_id, or
+# run_attempt), and cancel-in-progress must supersede non-main branch/PR runs while
+# allowing main runs to complete.
 
 CI_YML="${BATS_TEST_DIRNAME}/../.github/workflows/ci.yml"
 
@@ -51,6 +53,19 @@ assert_group_keyed_by_github_ref() {
     || { echo "concurrency group must be keyed by github.ref so pushes to a ref share a group: $group"; return 1; }
 }
 
+# Assert that a workflow file's concurrency group does not embed any per-commit or
+# per-run identifier (`github.sha`, `*.sha`, `run_id`, `run_attempt`, `run_number`)
+# that would place each push in a distinct concurrency group.
+assert_group_not_per_commit_or_run() {
+  local file="${1:-$CI_YML}"
+  local group
+  group="$(group_value "$file")"
+  if printf '%s\n' "$group" | grep -qE '(\.sha|run_id|run_attempt|run_number)([^A-Za-z0-9_]|$)'; then
+    echo "concurrency group must NOT contain per-commit/per-run tokens (.sha, run_id, run_attempt, run_number): $group"
+    return 1
+  fi
+}
+
 @test "ci.yml exists at the expected path" {
   [ -f "$CI_YML" ]
 }
@@ -59,10 +74,11 @@ assert_group_keyed_by_github_ref() {
   grep -qE '^concurrency:[[:space:]]*(#.*)?$' "$CI_YML"
 }
 
-@test "concurrency block defines a group" {
+@test "concurrency block defines the canonical ci-\${{ github.ref }} group" {
   local group
   group="$(group_value)"
-  [ -n "$group" ] || { echo "ci.yml concurrency has no 'group:' key"; return 1; }
+  [ "$group" = "ci-\${{ github.ref }}" ] \
+    || { echo "expected concurrency group 'ci-\${{ github.ref }}', got: $group"; return 1; }
 }
 
 @test "concurrency group is keyed by github.ref" {
@@ -83,16 +99,39 @@ EOF
   [ "$status" -ne 0 ]
 }
 
-@test "concurrency group does not embed github.sha (would defeat cancel-in-progress)" {
-  local group
-  group="$(group_value)"
-  ! printf '%s\n' "$group" | grep -qE 'github\.sha([^A-Za-z0-9_]|$)' \
-    || { echo "concurrency group must NOT contain github.sha: $group"; return 1; }
+@test "concurrency group does not embed github.sha or other per-commit/per-run tokens" {
+  assert_group_not_per_commit_or_run "$CI_YML"
 }
 
-@test "cancel-in-progress is enabled so a new push supersedes the stale run" {
-  concurrency_block | grep -qE '^[[:space:]]+cancel-in-progress:[[:space:]]*(true|"true"|'\''true'\'')([[:space:]]*|[[:space:]]+#.*)$' \
-    || { echo "concurrency must set cancel-in-progress: true"; return 1; }
+@test "concurrency group denylist rejects head.sha and run_id tokens" {
+  local fixture_sha="${BATS_TEST_TMPDIR}/ci-head-sha.yml"
+  cat > "$fixture_sha" <<'EOF'
+concurrency:
+  group: ci-${{ github.ref }}-${{ github.event.pull_request.head.sha }}
+  cancel-in-progress: true
+jobs:
+  build:
+    runs-on: ubuntu-latest
+EOF
+  run assert_group_not_per_commit_or_run "$fixture_sha"
+  [ "$status" -ne 0 ]
+
+  local fixture_run="${BATS_TEST_TMPDIR}/ci-run-id.yml"
+  cat > "$fixture_run" <<'EOF'
+concurrency:
+  group: ci-${{ github.ref }}-${{ github.run_id }}
+  cancel-in-progress: true
+jobs:
+  build:
+    runs-on: ubuntu-latest
+EOF
+  run assert_group_not_per_commit_or_run "$fixture_run"
+  [ "$status" -ne 0 ]
+}
+
+@test "cancel-in-progress cancels PR/branch runs while protecting refs/heads/main" {
+  concurrency_block | grep -qE "^[[:space:]]+cancel-in-progress:[[:space:]]*\\$\\{\\{[[:space:]]*github\\.ref[[:space:]]*!=[[:space:]]*'refs/heads/main'[[:space:]]*\\}\\}([[:space:]]*|[[:space:]]+#.*)$" \
+    || { echo "concurrency must set cancel-in-progress: \${{ github.ref != 'refs/heads/main' }}"; return 1; }
 }
 
 @test "group_value strips inline YAML comments so comments cannot satisfy guards" {
@@ -114,16 +153,33 @@ EOF
   fi
 }
 
-@test "AGENTS.md and copilot-instructions.md document DemandRadar pre-commit lint/format/typecheck/pytest commands" {
+@test "AGENTS.md and copilot-instructions.md document the exact CI commands from ci.yml" {
   local agents_md="${BATS_TEST_DIRNAME}/../AGENTS.md"
   local copilot_md="${BATS_TEST_DIRNAME}/../.github/copilot-instructions.md"
+  local cmd
+
+  # Every DemandRadar command documented in AGENTS.md / copilot-instructions.md must
+  # also exist verbatim in .github/workflows/ci.yml so docs and CI never drift.
+  for cmd in \
+    'python3 -m pip install -q --only-binary :all: --require-hashes -r requirements-ci.txt' \
+    'ruff check .' \
+    'ruff format --check .' \
+    'mypy --ignore-missing-imports .' \
+    'python3 -m pytest tests/ -q --tb=short' \
+    'python3 -m pytest tests/ --cov=. --cov-report=xml:coverage.xml --cov-report=term-missing --cov-fail-under=80'
+  do
+    grep -qF "$cmd" "$CI_YML" \
+      || { echo "ci.yml no longer contains expected command: $cmd"; return 1; }
+    for doc in "$agents_md" "$copilot_md"; do
+      [ -f "$doc" ]
+      grep -qF "$cmd" "$doc" \
+        || { echo "$doc is missing CI command: $cmd"; return 1; }
+    done
+  done
+
+  # Both docs must also document the PyYAML install step alongside bats tests/*.bats.
   for doc in "$agents_md" "$copilot_md"; do
-    [ -f "$doc" ]
-    grep -qF 'pocs/demand-radar' "$doc"
-    grep -qF 'python3 -m pip install -q --only-binary :all: --require-hashes -r requirements-ci.txt' "$doc"
-    grep -qF 'ruff check .' "$doc"
-    grep -qF 'ruff format --check .' "$doc"
-    grep -qF 'mypy --ignore-missing-imports .' "$doc"
-    grep -qF 'python3 -m pytest tests/ -q --cov=. --cov-fail-under=80' "$doc"
+    grep -qF 'python3 -m pip install -q pyyaml==6.0.2' "$doc"
+    grep -qF 'bats tests/*.bats' "$doc"
   done
 }

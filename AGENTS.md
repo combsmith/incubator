@@ -12,15 +12,17 @@ Before committing or pushing any changes, run the repository's local CI checks:
 
 - **CI & compliance regression guards (repo root; requires `bats` and `python3` with `PyYAML`):**
   ```bash
+  python3 -m pip install -q pyyaml==6.0.2
   bats tests/*.bats
   ```
 - **DemandRadar Python package (`pocs/demand-radar/`):**
-  Whenever touching files under `pocs/demand-radar/`, install the hash-pinned CI tools and run all four stages enforced by `.github/workflows/ci.yml`:
+  Whenever touching files under `pocs/demand-radar/`, install the hash-pinned CI tools and run the exact stages enforced by `.github/workflows/ci.yml`:
   ```bash
   cd pocs/demand-radar
   python3 -m pip install -q --only-binary :all: --require-hashes -r requirements-ci.txt
   ruff check .
   ruff format --check .
   mypy --ignore-missing-imports .
-  python3 -m pytest tests/ -q --cov=. --cov-fail-under=80
+  python3 -m pytest tests/ -q --tb=short
+  python3 -m pytest tests/ --cov=. --cov-report=xml:coverage.xml --cov-report=term-missing --cov-fail-under=80
   ```

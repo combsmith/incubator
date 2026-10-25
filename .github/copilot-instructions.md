@@ -40,15 +40,19 @@ stubs: they pass out of the box and are tailored to each repo's language after c
 Run all local checks that mirror `.github/workflows/ci.yml` before pushing:
 
 - **Compliance regression tests (repo root):**
-  `bats tests/*.bats` (requires `bats` and `python3` with `PyYAML` installed locally)
-- **DemandRadar lint, format, typecheck, and unit tests (`pocs/demand-radar`):**
+  ```bash
+  python3 -m pip install -q pyyaml==6.0.2
+  bats tests/*.bats
+  ```
+- **DemandRadar lint, format, typecheck, unit tests, and coverage (`pocs/demand-radar`):**
   ```bash
   cd pocs/demand-radar
   python3 -m pip install -q --only-binary :all: --require-hashes -r requirements-ci.txt
   ruff check .
   ruff format --check .
   mypy --ignore-missing-imports .
-  python3 -m pytest tests/ -q --cov=. --cov-fail-under=80
+  python3 -m pytest tests/ -q --tb=short
+  python3 -m pytest tests/ --cov=. --cov-report=xml:coverage.xml --cov-report=term-missing --cov-fail-under=80
   ```
 - **Workflow YAML validation:** push to a branch and let CI run, or use `act` locally.
 
