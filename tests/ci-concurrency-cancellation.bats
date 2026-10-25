@@ -41,6 +41,16 @@ group_value() {
     | sed -E 's/^[[:space:]]+group:[[:space:]]*//; s/[[:space:]]+#.*$//; s/[[:space:]]+$//'
 }
 
+# Assert that a workflow file's concurrency group references the exact `github.ref`
+# property (and not a prefix match like `github.ref_type` or `github.ref_name`).
+assert_group_keyed_by_github_ref() {
+  local file="${1:-$CI_YML}"
+  local group
+  group="$(group_value "$file")"
+  printf '%s\n' "$group" | grep -qE 'github\.ref([^A-Za-z0-9_]|$)' \
+    || { echo "concurrency group must be keyed by github.ref so pushes to a ref share a group: $group"; return 1; }
+}
+
 @test "ci.yml exists at the expected path" {
   [ -f "$CI_YML" ]
 }
@@ -56,16 +66,27 @@ group_value() {
 }
 
 @test "concurrency group is keyed by github.ref" {
-  local group
-  group="$(group_value)"
-  printf '%s\n' "$group" | grep -qE 'github\.ref' \
-    || { echo "concurrency group must be keyed by github.ref so pushes to a ref share a group: $group"; return 1; }
+  assert_group_keyed_by_github_ref "$CI_YML"
+}
+
+@test "concurrency group check rejects github.ref_type substring" {
+  local fixture="${BATS_TEST_TMPDIR}/ci-ref-type.yml"
+  cat > "$fixture" <<'EOF'
+concurrency:
+  group: ci-${{ github.ref_type }}
+  cancel-in-progress: true
+jobs:
+  build:
+    runs-on: ubuntu-latest
+EOF
+  run assert_group_keyed_by_github_ref "$fixture"
+  [ "$status" -ne 0 ]
 }
 
 @test "concurrency group does not embed github.sha (would defeat cancel-in-progress)" {
   local group
   group="$(group_value)"
-  ! printf '%s\n' "$group" | grep -qE 'github\.sha' \
+  ! printf '%s\n' "$group" | grep -qE 'github\.sha([^A-Za-z0-9_]|$)' \
     || { echo "concurrency group must NOT contain github.sha: $group"; return 1; }
 }
 
@@ -87,13 +108,13 @@ EOF
   local group
   group="$(group_value "$fixture")"
   [ "$group" = "ci-static" ]
-  if printf '%s\n' "$group" | grep -qE 'github\.ref'; then
+  if printf '%s\n' "$group" | grep -qE 'github\.ref([^A-Za-z0-9_]|$)'; then
     echo "inline comment leaked into group_value: $group"
     return 1
   fi
 }
 
-@test "AGENTS.md and copilot-instructions.md document DemandRadar pre-commit lint/format/typecheck commands" {
+@test "AGENTS.md and copilot-instructions.md document DemandRadar pre-commit lint/format/typecheck/pytest commands" {
   local agents_md="${BATS_TEST_DIRNAME}/../AGENTS.md"
   local copilot_md="${BATS_TEST_DIRNAME}/../.github/copilot-instructions.md"
   for doc in "$agents_md" "$copilot_md"; do
@@ -102,5 +123,6 @@ EOF
     grep -qF 'ruff check .' "$doc"
     grep -qF 'ruff format --check .' "$doc"
     grep -qF 'mypy --ignore-missing-imports .' "$doc"
+    grep -qF 'pytest' "$doc"
   done
 }

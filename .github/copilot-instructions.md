@@ -73,7 +73,7 @@ No application secrets are needed for local work. In CI:
   These verify that workflow stubs carry required jobs/steps (e.g. the secret-scan job in `ci.yml`).
 - CI validation: GitHub Actions workflows are the primary verification mechanism — push to a
   branch and let the CI suite run. SonarCloud guards code quality (gated by `SONAR_TOKEN`).
-- No coverage threshold applies — there is no application code to cover.
+- Coverage threshold: `pocs/demand-radar` enforces an 80% coverage floor (`--cov-fail-under=80` in the `coverage` CI job); no coverage threshold applies to the top-level workflow/shell stubs.
 
 ## Repo-Specific Overrides
 
