@@ -47,6 +47,7 @@ Two onboarding questions are resolved here so they are not left implicit:
 
 ---
 
-The rest — CODEOWNERS, AGENTS.md/CLAUDE.md pointers, LICENSE, SECURITY.md,
-.gitignore — is ready as shipped. Repo settings, rulesets, labels, and security
+The rest — CODEOWNERS, AGENTS.md/CLAUDE.md pointers, LICENSE,
+.gitignore — is ready as shipped (`SECURITY.md` is inherited org-wide from
+`combsmith/.github`). Repo settings, rulesets, labels, and security
 configuration are applied separately by the org `bootstrap-new-repo.sh` flow.
