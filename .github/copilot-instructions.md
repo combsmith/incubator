@@ -37,13 +37,20 @@ stubs: they pass out of the box and are tailored to each repo's language after c
 
 ## Local Dev Commands
 
-There is no install/build/dev-run step — the repo has no application dependencies.
+Run all local checks that mirror `.github/workflows/ci.yml` before pushing:
 
-Validation happens primarily via GitHub Actions in CI. To run the compliance regression tests
-locally:
-
-- Compliance tests: `bats tests/ci-secret-scan.bats`  ← requires `bats` installed locally
-- Workflow YAML validation: push to a branch and let CI run, or use `act` locally.
+- **Compliance regression tests (repo root):**
+  `bats tests/*.bats` (requires `bats` installed locally)
+- **DemandRadar lint, format, typecheck, and unit tests (`pocs/demand-radar`):**
+  ```bash
+  cd pocs/demand-radar
+  python3 -m pip install -q --only-binary :all: --require-hashes -r requirements-ci.txt
+  ruff check .
+  ruff format --check .
+  mypy --ignore-missing-imports .
+  python3 -m pytest tests/ -q --cov=. --cov-fail-under=80
+  ```
+- **Workflow YAML validation:** push to a branch and let CI run, or use `act` locally.
 
 ## Required Environment Variables
 
