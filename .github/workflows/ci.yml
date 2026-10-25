@@ -35,6 +35,9 @@ permissions: {}
 
 concurrency:
   group: ci-${{ github.ref }}
+  # Intentionally unconditional per the org-wide CI workflow standard
+  # (combsmith/.github/standards/workflows/ci.yml and repo-template#203):
+  # rapid pushes to any ref (including main) supersede stale in-flight runs.
   cancel-in-progress: true
 
 jobs:

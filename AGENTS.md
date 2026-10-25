@@ -10,14 +10,15 @@ settings, or labels. Repo-specific deviations, if any, are documented below.
 
 Before committing or pushing any changes, run the repository's local CI checks:
 
-- **CI & compliance regression guards (repo root):**
+- **CI & compliance regression guards (repo root; requires `bats` and `python3` with `PyYAML`):**
   ```bash
   bats tests/*.bats
   ```
 - **DemandRadar Python package (`pocs/demand-radar/`):**
-  Whenever touching files under `pocs/demand-radar/`, run all four stages enforced by `.github/workflows/ci.yml`:
+  Whenever touching files under `pocs/demand-radar/`, install the hash-pinned CI tools and run all four stages enforced by `.github/workflows/ci.yml`:
   ```bash
   cd pocs/demand-radar
+  python3 -m pip install -q --only-binary :all: --require-hashes -r requirements-ci.txt
   ruff check .
   ruff format --check .
   mypy --ignore-missing-imports .

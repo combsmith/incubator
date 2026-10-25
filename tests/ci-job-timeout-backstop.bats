@@ -23,7 +23,7 @@ job_block() {
   local file="${2:-$CI_YML}"
   awk -v job="$job" '
     /^jobs:[[:space:]]*(#.*)?$/ { in_jobs = 1; next }
-    in_jobs && /^[^[:space:]#]/ { in_jobs = 0 }
+    in_jobs && /^[^[:space:]#]/ { in_jobs = 0; in_job = 0 }
     in_jobs && $0 ~ "^  (\"|\x27)?" job "(\"|\x27)?:[[:space:]]*(#.*)?$" { in_job = 1; print; next }
     in_job && /^  ("|\x27)?[A-Za-z0-9_-]+("|\x27)?:[[:space:]]*(#.*)?$/ { in_job = 0 }
     in_job { print }
@@ -145,8 +145,30 @@ EOF
   [ "$status" -ne 0 ]
 }
 
+@test "job_block stops at a top-level section after jobs: so trailing keys cannot leak" {
+  local fixture="${BATS_TEST_TMPDIR}/trailing-top-level.yml"
+  cat > "$fixture" <<'EOF'
+name: fixture
+on: push
+jobs:
+  last-job-missing-timeout:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo hi
+x-extra-section:
+  nested:
+    timeout-minutes: 15
+EOF
+  run assert_job_has_bounded_timeout "last-job-missing-timeout" "$fixture"
+  [ "$status" -ne 0 ]
+}
+
 @test "ci.yml remains valid YAML with no duplicate keys and integer timeout-minutes on all jobs" {
   if ! command -v python3 >/dev/null 2>&1 || ! python3 -c "import yaml" >/dev/null 2>&1; then
+    if [ "${CI:-}" = "true" ]; then
+      echo "python3 with PyYAML is required when CI=true"
+      return 1
+    fi
     skip "python3 with PyYAML not installed"
   fi
   python3 - "$CI_YML" <<'PY'

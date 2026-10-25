@@ -40,7 +40,7 @@ stubs: they pass out of the box and are tailored to each repo's language after c
 Run all local checks that mirror `.github/workflows/ci.yml` before pushing:
 
 - **Compliance regression tests (repo root):**
-  `bats tests/*.bats` (requires `bats` installed locally)
+  `bats tests/*.bats` (requires `bats` and `python3` with `PyYAML` installed locally)
 - **DemandRadar lint, format, typecheck, and unit tests (`pocs/demand-radar`):**
   ```bash
   cd pocs/demand-radar

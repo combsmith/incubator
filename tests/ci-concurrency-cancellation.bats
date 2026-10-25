@@ -120,9 +120,10 @@ EOF
   for doc in "$agents_md" "$copilot_md"; do
     [ -f "$doc" ]
     grep -qF 'pocs/demand-radar' "$doc"
+    grep -qF 'python3 -m pip install -q --only-binary :all: --require-hashes -r requirements-ci.txt' "$doc"
     grep -qF 'ruff check .' "$doc"
     grep -qF 'ruff format --check .' "$doc"
     grep -qF 'mypy --ignore-missing-imports .' "$doc"
-    grep -qF 'pytest' "$doc"
+    grep -qF 'python3 -m pytest tests/ -q --cov=. --cov-fail-under=80' "$doc"
   done
 }
