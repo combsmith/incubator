@@ -277,7 +277,7 @@ jobs:
           persist-credentials: false
 
       - name: Download this run's digest, deep-dives and board data
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: ${{ needs.refresh.outputs.artifact }}
           path: pocs/demand-radar
@@ -355,13 +355,13 @@ jobs:
           persist-credentials: false
 
       - name: Download this run's board data and deep-dives
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: ${{ needs.refresh.outputs.artifact }}
           path: pocs/demand-radar
 
       - name: Download the drafted comment
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: demand-radar-signals-comment
           path: pocs/demand-radar/output
