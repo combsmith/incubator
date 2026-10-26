@@ -6,7 +6,7 @@ setup() {
   REPO_ROOT="$(cd "$(dirname "$BATS_TEST_FILENAME")/.." && pwd)"
   SPEC="$REPO_ROOT/ideas/package-spec.json"
   export SPEC
-  # shellcheck source=../scripts/incubation-gate.sh
+  # shellcheck disable=SC1091
   source "$REPO_ROOT/scripts/incubation-gate.sh"
   WORK="$(mktemp -d)"
 }
@@ -20,8 +20,9 @@ _make_complete_pkg() {
   for file in $(jq -r '.required_artifacts[].file' "$SPEC"); do
     cp "$REPO_ROOT/ideas/_TEMPLATE/$file" "$dir/$file"
     # mark final + strip the literal placeholders the gate rejects
-    sed -i 's/^status: draft.*/status: final/' "$dir/$file"
-    sed -i 's/<Idea Title>/Demo/g; s/<slug>/demo/g; s/<YYYY-MM-DD>/2026-07-12/g; s/<who>/tester/g; s#<link>#https://example.com#g' "$dir/$file"
+    sed -i.bak 's/^status: draft.*/status: final/' "$dir/$file"
+    sed -i.bak 's/<Idea Title>/Demo/g; s/<slug>/demo/g; s/<YYYY-MM-DD>/2026-07-12/g; s/<who>/tester/g; s#<link>#https://example.com#g' "$dir/$file"
+    rm -f "$dir/$file.bak"
   done
   echo "$dir"
 }
@@ -48,13 +49,18 @@ _make_complete_pkg() {
 
 @test "has_section: false when header absent" {
   printf -- '## Something else\n' > "$WORK/a.md"
-  ! has_section "$WORK/a.md" "Problem"
+  if has_section "$WORK/a.md" "Problem"; then
+    return 1
+  fi
 }
 
 @test "has_placeholder: detects the needs-discovery marker and angle placeholders" {
   printf -- 'TODO — needs discovery\n' > "$WORK/a.md"; has_placeholder "$WORK/a.md"
   printf -- 'slug is <slug>\n'        > "$WORK/b.md"; has_placeholder "$WORK/b.md"
-  printf -- 'all filled in here\n'    > "$WORK/c.md"; ! has_placeholder "$WORK/c.md"
+  printf -- 'all filled in here\n'    > "$WORK/c.md"
+  if has_placeholder "$WORK/c.md"; then
+    return 1
+  fi
 }
 
 @test "check_package: a fully-filled package passes (exit 0, COMPLETE)" {
@@ -75,7 +81,8 @@ _make_complete_pkg() {
 
 @test "check_package: a draft-status artifact fails the gate" {
   local dir; dir="$(_make_complete_pkg)"
-  sed -i 's/^status: final/status: draft/' "$dir/brief.md"
+  sed -i.bak 's/^status: final/status: draft/' "$dir/brief.md"
+  rm -f "$dir/brief.md.bak"
   run check_package "$dir"
   [ "$status" -eq 1 ]
   [[ "$output" == *"brief.md"* && "$output" == *"draft"* ]]
