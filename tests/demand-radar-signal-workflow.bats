@@ -18,6 +18,8 @@
 #     cat/jq/the citation gate) and never a Discussions scope;
 #   - only the isolated `post-signals` job holds discussions: write, and it runs the
 #     citation gate from a clean checkout before posting.
+#   - the fleet pause (AGENTS_PAUSED=true) skips the Analyst, and `fleet-paused` says so in
+#     a run notice — run 40327424532 lost its weekly comment to a pause with no trace.
 # Free-per-repo workflow (tier 3): the shape below is this repo's, not an org stub.
 
 DR_YML="${BATS_TEST_DIRNAME}/../.github/workflows/demand-radar-signal.yml"
@@ -38,7 +40,8 @@ setup() {
   DEPLOY="$(_job_block deploy-pages)"
   ANALYST="$(_job_block analyst)"
   POST="$(_job_block post-signals)"
-  export REFRESH DEPLOY ANALYST POST
+  PAUSED="$(_job_block fleet-paused)"
+  export REFRESH DEPLOY ANALYST POST PAUSED
 }
 
 # _perms BLOCK — the job's permission grants as one sorted "key: value " line.
@@ -226,4 +229,32 @@ _perms() {
   cond="$(printf '%s\n' "$POST" | grep -E '^    if: ')"
   printf '%s\n' "$cond" | grep -qE "needs\\.analyst\\.outputs\\.drafted == 'true'"
   printf '%s\n' "$cond" | grep -qE "github\\.event\\.repository\\.default_branch"
+}
+
+# ── fleet pause (AGENTS_PAUSED) ─────────────────────────────────────────────────
+
+@test "the analyst job keeps the fleet-pause guard" {
+  cond="$(printf '%s\n' "$ANALYST" | grep -E '^    if: ')"
+  printf '%s\n' "$cond" | grep -qF "vars.AGENTS_PAUSED != 'true'"
+  # always() is what lets a DEGRADED (failed) refresh still be reviewed
+  printf '%s\n' "$cond" | grep -qE 'always\(\)'
+}
+
+@test "a paused fleet leaves a run notice instead of a silent skip" {
+  [ -n "$PAUSED" ]
+  cond="$(printf '%s\n' "$PAUSED" | grep -E '^    if: ')"
+  printf '%s\n' "$cond" | grep -qF "vars.AGENTS_PAUSED == 'true'"
+  printf '%s\n' "$cond" | grep -qE "github\\.event\\.repository\\.default_branch"
+  printf '%s\n' "$PAUSED" | grep -qE '::notice title=Agent fleet paused::DemandRadar'
+}
+
+@test "fleet-paused stands alone and holds nothing that could reach the model" {
+  # no needs: (a slow or failed refresh must not silence it)
+  if printf '%s\n' "$PAUSED" | grep -qE '^    needs:'; then false; fi
+  printf '%s\n' "$PAUSED" | grep -qE '^    permissions: \{\}$'
+  if printf '%s\n' "$PAUSED" | grep -qE 'secrets\.|github\.token|uses: '; then false; fi
+  # pause metadata reaches the script through env:, never ${{ }} in the run body
+  run_body="$(printf '%s\n' "$PAUSED" | awk '/^        run: \|/{p=1;next} p')"
+  [ -n "$run_body" ]
+  if printf '%s\n' "$run_body" | grep -qF '${{'; then false; fi
 }
