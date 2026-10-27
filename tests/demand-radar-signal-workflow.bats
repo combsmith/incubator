@@ -243,8 +243,8 @@ _perms() {
 @test "a paused fleet leaves a run notice instead of a silent skip" {
   [ -n "$PAUSED" ]
   cond="$(printf '%s\n' "$PAUSED" | grep -E '^    if: ')"
-  printf '%s\n' "$cond" | grep -qF "vars.AGENTS_PAUSED == 'true'"
-  printf '%s\n' "$cond" | grep -qE "github\\.event\\.repository\\.default_branch"
+  # the whole gate, so an `||` (notice on unpaused or feature-branch runs) cannot pass
+  printf '%s\n' "$cond" | grep -qF "vars.AGENTS_PAUSED == 'true' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) }}"
   printf '%s\n' "$PAUSED" | grep -qE '::notice title=Agent fleet paused::DemandRadar'
 }
 

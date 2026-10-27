@@ -402,6 +402,6 @@ jobs:
           # by the runner as a workflow command of its own.
           pause_source="$(printf '%s' "${PAUSE_SOURCE:-not set (paused by hand)}" | tr '\r\n' '  ')"
           pause_until="$(printf '%s' "${PAUSE_UNTIL:-not set}" | tr '\r\n' '  ')"
-          echo "::notice title=Agent fleet paused::DemandRadar: the Analyst review and the weekly signals comment were not run, the agent fleet is paused (AGENTS_PAUSED=true). The digest is still in this run's demand-radar artifact." \
+          echo "::notice title=Agent fleet paused::DemandRadar: the Analyst review and the weekly signals comment were not run, the agent fleet is paused (AGENTS_PAUSED=true)." \
             "Pause source: ${pause_source}." \
             "Paused until: ${pause_until}."
