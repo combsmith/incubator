@@ -23,6 +23,8 @@
 # drafts ONE comment for the "DemandRadar — weekly signals" Discussion (`analyst`, read-only
 # token). A separate job (`post-signals`) re-checks every citation from a clean checkout and
 # posts it — the decision-brief model/land split. Nothing is ever promoted automatically.
+# While the agent fleet is paused (AGENTS_PAUSED=true) both are skipped and `fleet-paused`
+# leaves a run notice saying why, so a missing weekly comment is never silent.
 #
 # Disposable POC workflow under pocs/. Not a thin caller to an org reusable (none exists).
 # Free data only; YOUTUBE_API_KEY / REDDIT_* secrets are optional (enrich falls back to
@@ -375,3 +377,31 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ github.token }}
         run: python3 pocs/demand-radar/post_signals.py
+
+  fleet-paused:
+    name: Agent Fleet Paused — Analyst Review Not Run
+    # With AGENTS_PAUSED=true `analyst` (and so `post-signals`) is skipped by its `if:`, and
+    # a skipped job cannot log — run 40327424532 (2026-10-26) lost its weekly comment that
+    # way with nothing saying why. This job runs instead and says so in one line (org
+    # pattern, combsmith/.github#1295). It stands alone (no `needs:`, so a slow or failed
+    # refresh never silences it), holds no secret, token or action, and can never reach
+    # the model. Default branch only, the same scope as `analyst`.
+    if: ${{ vars.AGENTS_PAUSED == 'true' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    permissions: {}
+    env:
+      # Through `env:`, never `${{ }}` inside the script: the values are data.
+      PAUSE_SOURCE: ${{ vars.AGENTS_PAUSE_SOURCE }}
+      PAUSE_UNTIL: ${{ vars.AGENTS_PAUSE_UNTIL }}
+    steps:
+      - name: Report the fleet pause
+        run: |
+          set -euo pipefail
+          # Line breaks become spaces: a second log line starting with `::` would be read
+          # by the runner as a workflow command of its own.
+          pause_source="$(printf '%s' "${PAUSE_SOURCE:-not set (paused by hand)}" | tr '\r\n' '  ')"
+          pause_until="$(printf '%s' "${PAUSE_UNTIL:-not set}" | tr '\r\n' '  ')"
+          echo "::notice title=Agent fleet paused::DemandRadar: the Analyst review and the weekly signals comment were not run, the agent fleet is paused (AGENTS_PAUSED=true)." \
+            "Pause source: ${pause_source}." \
+            "Paused until: ${pause_until}."
