@@ -179,7 +179,7 @@ EOF
 
   # Both docs must also document the PyYAML install step alongside bats tests/*.bats.
   for doc in "$agents_md" "$copilot_md"; do
-    grep -qF 'python3 -m pip install -q pyyaml==6.0.2' "$doc"
+    grep -qF 'python3 -m pip install -q pyyaml==6.0.3' "$doc"
     grep -qF 'bats tests/*.bats' "$doc"
   done
 }
