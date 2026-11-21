@@ -41,7 +41,7 @@ Run all local checks that mirror `.github/workflows/ci.yml` before pushing:
 
 - **Compliance regression tests (repo root):**
   ```bash
-  python3 -m pip install -q pyyaml==6.0.2
+  python3 -m pip install -q pyyaml==6.0.3
   bats tests/*.bats
   ```
 - **DemandRadar lint, format, typecheck, unit tests, and coverage (`pocs/demand-radar`):**
