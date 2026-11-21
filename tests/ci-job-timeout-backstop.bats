@@ -198,7 +198,7 @@ EOF
 
 @test "ci.yml remains valid YAML with no duplicate keys and integer timeout-minutes (10..20) on all jobs" {
   if ! command -v python3 >/dev/null 2>&1 || ! python3 -c "import yaml" >/dev/null 2>&1; then
-    echo "python3 with PyYAML is required (run: python3 -m pip install -q pyyaml==6.0.2)"
+    echo "python3 with PyYAML is required (run: python3 -m pip install -q pyyaml==6.0.3)"
     return 1
   fi
   python3 - "$CI_YML" <<'PY'

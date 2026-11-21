@@ -12,7 +12,7 @@ Before committing or pushing any changes, run the repository's local CI checks:
 
 - **CI & compliance regression guards (repo root; requires `bats` and `python3` with `PyYAML`):**
   ```bash
-  python3 -m pip install -q pyyaml==6.0.2
+  python3 -m pip install -q pyyaml==6.0.3
   bats tests/*.bats
   ```
 - **DemandRadar Python package (`pocs/demand-radar/`):**
