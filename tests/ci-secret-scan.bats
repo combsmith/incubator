@@ -35,3 +35,12 @@ GITLEAKS_TOML="${BATS_TEST_DIRNAME}/../.gitleaks.toml"
 @test ".gitleaks.toml declares an allowlist section" {
   grep -qE '^\[allowlist\]' "$GITLEAKS_TOML"
 }
+
+@test ".gitleaks.toml enables the default ruleset" {
+  grep -qE '^[[:space:]]*\[extend\]' "$GITLEAKS_TOML"
+  grep -qE '^[[:space:]]*useDefault[[:space:]]*=[[:space:]]*true' "$GITLEAKS_TOML"
+  # useDefault must live inside the [extend] table, not a later one (e.g. [allowlist]).
+  run awk '/^[[:space:]]*\[/{sub(/#.*/, ""); gsub(/[[:space:]]/, ""); t=$0} /^[[:space:]]*useDefault[[:space:]]*=[[:space:]]*true/{print t}' "$GITLEAKS_TOML"
+  [ "$status" -eq 0 ]
+  [ "$output" = "[extend]" ]
+}
